@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -27,7 +27,7 @@ async function main() {
         { type: "SHORT", afterPeriod: 2, duration: 15 },
         { type: "LUNCH", afterPeriod: 4, duration: 30 },
       ],
-      assembly: null,
+      assembly: Prisma.DbNull,
     },
     update: {},
   });
@@ -42,7 +42,7 @@ async function main() {
         { type: "SHORT", afterPeriod: 2, duration: 10 },
         { type: "LUNCH", afterPeriod: 5, duration: 30 },
       ],
-      assembly: null,
+      assembly: Prisma.DbNull,
     },
     update: {},
   });
