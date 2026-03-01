@@ -27,7 +27,7 @@ async function main() {
         { type: "SHORT", afterPeriod: 2, duration: 15 },
         { type: "LUNCH", afterPeriod: 4, duration: 30 },
       ],
-      assembly: { periodIndex: 0, duration: 15 },
+      assembly: null,
     },
     update: {},
   });
@@ -42,7 +42,7 @@ async function main() {
         { type: "SHORT", afterPeriod: 2, duration: 10 },
         { type: "LUNCH", afterPeriod: 5, duration: 30 },
       ],
-      assembly: { periodIndex: 0, duration: 15 },
+      assembly: null,
     },
     update: {},
   });

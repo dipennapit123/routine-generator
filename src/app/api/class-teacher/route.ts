@@ -33,3 +33,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to save" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get("classId");
+    if (!classId) {
+      return NextResponse.json({ error: "classId required" }, { status: 400 });
+    }
+    await prisma.classTeacher.deleteMany({ where: { classId } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  }
+}

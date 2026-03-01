@@ -10,8 +10,20 @@ interface Teacher {
   maxPerDay: number;
 }
 
+interface ClassRoom {
+  id: string;
+  displayName: string;
+}
+
+interface ClassTeacherEntry {
+  classId: string;
+  teacherId: string;
+}
+
 export default function TeachersPage() {
   const [list, setList] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [classTeacherList, setClassTeacherList] = useState<ClassTeacherEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Teacher | null>(null);
   const [form, setForm] = useState({
@@ -19,29 +31,37 @@ export default function TeachersPage() {
     type: "FULL_TIME" as "FULL_TIME" | "PART_TIME",
     maxPerWeek: 30,
     maxPerDay: 6,
+    classTeacherFor: [] as string[],
   });
 
   useEffect(() => {
-    fetch("/api/teachers")
-      .then((r) => r.json())
-      .then((data) => {
-        setList(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch("/api/teachers").then((r) => r.json()),
+      fetch("/api/classes").then((r) => r.json()),
+      fetch("/api/class-teacher").then((r) => r.json()),
+    ]).then(([teachersData, classesData, ctData]) => {
+      setList(Array.isArray(teachersData) ? teachersData : []);
+      setClasses(Array.isArray(classesData) ? classesData : []);
+      setClassTeacherList(Array.isArray(ctData) ? ctData : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   function openAdd() {
-    setForm({ name: "", type: "FULL_TIME", maxPerWeek: 30, maxPerDay: 6 });
+    setForm({ name: "", type: "FULL_TIME", maxPerWeek: 30, maxPerDay: 6, classTeacherFor: [] });
     setModal({ id: "", name: "", type: "FULL_TIME", maxPerWeek: 30, maxPerDay: 6 });
   }
 
   function openEdit(t: Teacher) {
+    const classTeacherFor = classTeacherList
+      .filter((ct) => ct.teacherId === t.id)
+      .map((ct) => ct.classId);
     setForm({
       name: t.name,
       type: t.type as "FULL_TIME" | "PART_TIME",
       maxPerWeek: t.maxPerWeek,
       maxPerDay: t.maxPerDay,
+      classTeacherFor,
     });
     setModal(t);
   }
@@ -50,23 +70,53 @@ export default function TeachersPage() {
     e.preventDefault();
     if (!form.name.trim()) return;
     try {
+      const teacherPayload = { name: form.name, type: form.type, maxPerWeek: form.maxPerWeek, maxPerDay: form.maxPerDay };
+      let teacherId: string;
       if (modal?.id) {
         await fetch(`/api/teachers/${modal.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(teacherPayload),
         });
+        teacherId = modal.id;
+        const previous = classTeacherList.filter((ct) => ct.teacherId === modal.id).map((ct) => ct.classId);
+        const toAdd = form.classTeacherFor.filter((c) => !previous.includes(c));
+        const toRemove = previous.filter((c) => !form.classTeacherFor.includes(c));
+        for (const classId of toAdd) {
+          await fetch("/api/class-teacher", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ classId, teacherId }),
+          });
+        }
+        for (const classId of toRemove) {
+          await fetch(`/api/class-teacher?classId=${encodeURIComponent(classId)}`, { method: "DELETE" });
+        }
       } else {
-        await fetch("/api/teachers", {
+        const res = await fetch("/api/teachers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(teacherPayload),
         });
+        const created = await res.json();
+        teacherId = created?.id;
+        if (teacherId && form.classTeacherFor.length > 0) {
+          for (const classId of form.classTeacherFor) {
+            await fetch("/api/class-teacher", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ classId, teacherId }),
+            });
+          }
+        }
       }
       setModal(null);
-      const res = await fetch("/api/teachers");
-      const data = await res.json();
-      setList(Array.isArray(data) ? data : []);
+      const [teachersRes, ctRes] = await Promise.all([
+        fetch("/api/teachers"),
+        fetch("/api/class-teacher"),
+      ]);
+      setList(Array.isArray(await teachersRes.json()) ? await teachersRes.json() : []);
+      setClassTeacherList(Array.isArray(await ctRes.json()) ? await ctRes.json() : []);
     } catch {
       alert("Failed.");
     }
@@ -175,6 +225,33 @@ export default function TeachersPage() {
                   onChange={(e) => setForm((f) => ({ ...f, maxPerDay: Number(e.target.value) }))}
                   className="input mt-1.5"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Class teacher for (optional)</label>
+                <p className="text-xs text-[var(--text-muted)] mb-2">Assign this teacher as class teacher to one or more classes.</p>
+                <div className="max-h-32 overflow-y-auto rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-2 space-y-1.5">
+                  {classes.length === 0 ? (
+                    <p className="text-sm text-[var(--text-muted)]">No classes yet. Add grades &amp; classes first.</p>
+                  ) : (
+                    classes.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.classTeacherFor.includes(c.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setForm((f) => ({ ...f, classTeacherFor: [...f.classTeacherFor, c.id] }));
+                            } else {
+                              setForm((f) => ({ ...f, classTeacherFor: f.classTeacherFor.filter((id) => id !== c.id) }));
+                            }
+                          }}
+                          className="rounded border-[var(--border)]"
+                        />
+                        <span className="text-sm">{c.displayName}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
             <div className="mt-6 flex gap-3">

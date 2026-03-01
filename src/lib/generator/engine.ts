@@ -29,7 +29,8 @@ export function getFixedSlotTypes(
       slotTypes[b.afterPeriod] = b.type === "LUNCH" ? "LUNCH" : "BREAK";
     }
   }
-  if (assemblyPeriod !== null && assemblyPeriod >= 0 && assemblyPeriod < periodsPerDay) {
+  // Never put assembly in period 0 so period 1 can be class teacher
+  if (assemblyPeriod !== null && assemblyPeriod >= 1 && assemblyPeriod < periodsPerDay) {
     slotTypes[assemblyPeriod] = "ASSEMBLY";
   }
   return slotTypes;

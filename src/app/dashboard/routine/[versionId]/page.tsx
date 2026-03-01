@@ -295,7 +295,11 @@ export default function RoutineVersionPage() {
                   const text =
                     view === "class"
                       ? isClass
-                        ? `${slot.subject?.name ?? ""}${slot.teacher?.name ? ` (${slot.teacher.name})` : ""}`
+                        ? slot.subject?.name
+                          ? `${slot.subject.name}${slot.teacher?.name ? ` (${slot.teacher.name})` : ""}`
+                          : slot.teacher?.name
+                            ? `Class teacher (${slot.teacher.name})`
+                            : "Class teacher"
                         : slot.slotType
                       : view === "teacher"
                         ? slot.classRoom?.displayName ?? ""

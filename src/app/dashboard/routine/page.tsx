@@ -20,7 +20,7 @@ export default function RoutinePage() {
   const [generating, setGenerating] = useState(false);
   const [generateOpts, setGenerateOpts] = useState({
     configType: "HIGHER" as "LOWER" | "HIGHER",
-    firstPeriodPriorityOverride: undefined as boolean | undefined,
+    firstPeriodPriorityOverride: true as boolean | undefined,
     seed: undefined as number | undefined,
   });
 
@@ -179,16 +179,18 @@ export default function RoutinePage() {
                 <input
                   type="checkbox"
                   id="fpp"
-                  checked={generateOpts.firstPeriodPriorityOverride === true}
+                  checked={generateOpts.firstPeriodPriorityOverride !== false}
                   onChange={(e) =>
                     setGenerateOpts((o) => ({
                       ...o,
-                      firstPeriodPriorityOverride: e.target.checked ? true : undefined,
+                      firstPeriodPriorityOverride: e.target.checked,
                     }))
                   }
                   className="h-4 w-4 rounded border-[var(--border)] text-[var(--accent)]"
                 />
-                <label htmlFor="fpp" className="text-sm text-[var(--text-primary)]">First period = class teacher (override)</label>
+                <label htmlFor="fpp" className="text-sm text-[var(--text-primary)]">
+                  First period = class teacher (each class’s first period is assigned to their class teacher)
+                </label>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)]">Random seed (optional)</label>
