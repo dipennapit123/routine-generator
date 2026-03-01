@@ -93,3 +93,22 @@ export async function POST(
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ versionId: string }> }
+) {
+  try {
+    const { versionId } = await params;
+    await prisma.routineVersion.delete({
+      where: { id: versionId },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    if (e instanceof Error && e.name === "NotFoundError") {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
+    console.error(e);
+    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+  }
+}

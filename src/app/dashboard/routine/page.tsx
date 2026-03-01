@@ -93,6 +93,16 @@ export default function RoutinePage() {
     }
   }
 
+  async function deleteVersion(versionId: string) {
+    if (!confirm("Delete this routine permanently? This cannot be undone.")) return;
+    try {
+      await fetch(`/api/routine/${versionId}`, { method: "DELETE" });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+    } catch {
+      alert("Failed to delete.");
+    }
+  }
+
   if (loading) return <p className="loading-text">Loading...</p>;
 
   return (
@@ -146,10 +156,13 @@ export default function RoutinePage() {
                     Duplicate
                   </button>
                   {v.status !== "ARCHIVED" && (
-                    <button type="button" onClick={() => archive(v.id)} className="text-red-600 hover:underline">
+                    <button type="button" onClick={() => archive(v.id)} className="text-[var(--text-secondary)] hover:underline mr-3">
                       Archive
                     </button>
                   )}
+                  <button type="button" onClick={() => deleteVersion(v.id)} className="text-red-600 hover:underline">
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
