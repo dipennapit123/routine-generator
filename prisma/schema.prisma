@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SchoolSetting {
+  id                  String   @id @default(cuid())
+  schoolName          String   @default("My School")
+  academicYear        String   @default("2024-2025")
+  firstPeriodPriority Boolean  @default(true)
+  weekDays            String   @default("Sunday,Monday,Tuesday,Wednesday,Thursday,Friday")
+  createdAt           DateTime @updatedAt
+}
+
+model ScheduleConfig {
+  id             String   @id @default(cuid())
+  type           String   // LOWER | HIGHER
+  periodsPerDay  Int
+  periodDuration Int      // minutes
+  breaks         Json     // [{ type: "SHORT"|"LUNCH", afterPeriod: number, duration: number }]
+  assembly       Json?    // { periodIndex: number, duration: number } | null
+  createdAt      DateTime @updatedAt
+
+  @@unique([type])
+}
+
+model Grade {
+  id     String   @id @default(cuid())
+  number Int      @unique
+  sections Section[]
+  classRooms ClassRoom[]
+  gradeModes GradeMode[]
+  subjectRequirements SubjectRequirement[]
+}
+
+model Section {
+  id       String     @id @default(cuid())
+  name     String     // A, B, C...
+  gradeId  String
+  grade    Grade      @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  classRooms ClassRoom[]
+}
+
+model ClassRoom {
+  id          String   @id @default(cuid())
+  gradeId     String
+  grade       Grade    @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  displayName String   // e.g. "Grade 1-A"
+  classTeacher ClassTeacher?
+  teacherAssignments TeacherAssignment[]
+  subjectRequirements SubjectRequirement[]
+  routineSlots RoutineSlot[]
+
+  @@unique([gradeId, sectionId])
+}
+
+model Subject {
+  id               String   @id @default(cuid())
+  name             String
+  type             String   // THEORY | PRACTICAL | ECA
+  requiresResource Boolean  @default(false)
+  resourceType     String?  // SCIENCE_LAB | COMPUTER_LAB | LIBRARY | ECA_ROOM
+  teacherAssignments TeacherAssignment[]
+  subjectRequirements SubjectRequirement[]
+  routineSlots RoutineSlot[]
+}
+
+model Resource {
+  id     String   @id @default(cuid())
+  name   String
+  type   String   // SCIENCE_LAB | COMPUTER_LAB | LIBRARY | ECA_ROOM
+  capacity Int    @default(1)
+  routineSlots RoutineSlot[]
+}
+
+model Teacher {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // FULL_TIME | PART_TIME
+  maxPerWeek  Int
+  maxPerDay   Int
+  availability TeacherAvailability[]
+  classTeachers ClassTeacher[]
+  teacherAssignments TeacherAssignment[]
+  routineSlots RoutineSlot[]
+}
+
+model TeacherAvailability {
+  id           String   @id @default(cuid())
+  teacherId    String
+  teacher      Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  day          Int      // 0=Sunday .. 5=Friday
+  periodIndex  Int
+  status       String   // AVAILABLE | BLOCKED | LEAVE
+
+  @@unique([teacherId, day, periodIndex])
+}
+
+model ClassTeacher {
+  id        String   @id @default(cuid())
+  classId   String   @unique
+  classRoom ClassRoom @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+}
+
+model TeacherAssignment {
+  id        String   @id @default(cuid())
+  classId   String
+  classRoom ClassRoom @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, subjectId])
+}
+
+model GradeMode {
+  id      String @id @default(cuid())
+  gradeId String @unique
+  grade   Grade  @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  mode    String // GRADE_SYSTEM | SUBJECT_SYSTEM
+}
+
+model SubjectRequirement {
+  id               String    @id @default(cuid())
+  gradeId          String?
+  grade            Grade?    @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  classId          String?
+  classRoom        ClassRoom? @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId        String
+  subject          Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  periodsPerWeek   Int
+  allowDoublePeriod Boolean @default(false)
+  maxPerDay        Int?
+  avoidConsecutive Boolean  @default(false)
+}
+
+model RoutineVersion {
+  id             String       @id @default(cuid())
+  name           String
+  status         String       // DRAFT | PUBLISHED | ARCHIVED
+  configSnapshot Json?
+  createdAt      DateTime     @default(now())
+  routineSlots   RoutineSlot[]
+}
+
+model RoutineSlot {
+  id          String        @id @default(cuid())
+  versionId   String
+  version     RoutineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  classId     String
+  classRoom   ClassRoom     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  day         Int           // 0=Sunday .. 5=Friday
+  periodIndex Int
+  slotType    String        // CLASS | BREAK | LUNCH | ASSEMBLY | FREE
+  subjectId   String?
+  subject     Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacherId   String?
+  teacher     Teacher?      @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  resourceId  String?
+  resource    Resource?     @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  isDoublePeriodSecond Boolean @default(false)
+  notes       String?
+
+  @@unique([versionId, classId, day, periodIndex])
+  @@index([versionId, teacherId, day, periodIndex])
+  @@index([versionId, resourceId, day, periodIndex])
+}
