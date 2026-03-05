@@ -118,6 +118,22 @@ export default function RoutinePage() {
         </button>
       </div>
 
+      <div className="card mb-6 p-4">
+        <h2 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">
+          Minimum setup before generating
+        </h2>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--text-secondary)]">
+          <li>Fill <strong>School Settings</strong> and <strong>Schedule Config</strong> (periods per day, breaks).</li>
+          <li>Create <strong>Grades, Sections & Classes</strong> in “Grades &amp; Classes”.</li>
+          <li>Add <strong>Subjects</strong> and <strong>Teachers</strong>.</li>
+          <li>Define <strong>Subject Requirements</strong> (periods per week) in “Requirements”.</li>
+          <li>In “Assignments”, set <strong>Class Teachers</strong> and assign <strong>Subject Teachers</strong> to each class.</li>
+        </ul>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          The generator will also show a detailed minimum requirement message if anything is still missing.
+        </p>
+      </div>
+
       <div className="table-wrapper">
         <table className="w-full border-collapse">
           <thead>
