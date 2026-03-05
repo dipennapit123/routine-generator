@@ -170,8 +170,12 @@ async function main() {
         data: {
           gradeId: g.id,
           subjectId: subject.id,
-          periodsPerWeek: g.number <= 3 ? 2 : 4,
-          allowDoublePeriod: subject.type === "PRACTICAL",
+          // Lighter defaults so generation is more likely to succeed for all grades:
+          // Grades 1–3: 2/wk, 4–5: 4/wk, 6–10: 2/wk.
+          periodsPerWeek: g.number <= 3 ? 2 : g.number <= 5 ? 4 : 2,
+          // Keep demo generation simple/reliable: avoid double periods even for practicals.
+          // Admins can turn on double periods per subject later in the UI.
+          allowDoublePeriod: false,
           maxPerDay: 2,
           avoidConsecutive: false,
         },
