@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SWRConfig } from "swr";
+import { swrConfig } from "@/lib/swr";
 
 const nav = [
   { href: "/dashboard", label: "Overview" },
@@ -61,7 +63,7 @@ export default function DashboardLayout({
         </nav>
       </aside>
       <main className="min-w-0 flex-1 overflow-auto p-6 lg:p-8">
-        {children}
+        <SWRConfig value={swrConfig}>{children}</SWRConfig>
       </main>
     </div>
   );

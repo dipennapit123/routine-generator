@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 interface Subject {
   id: string;
@@ -29,12 +30,24 @@ interface Requirement {
   classRoom?: ClassRoom;
 }
 
+const REQUIREMENTS_KEY = "/api/requirements";
+const SUBJECTS_KEY = "/api/subjects";
+const GRADES_KEY = "/api/grades";
+const CLASSES_KEY = "/api/classes";
+
 export default function RequirementsPage() {
-  const [list, setList] = useState<Requirement[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [classes, setClasses] = useState<ClassRoom[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  const { data: listData, isLoading: listLoading } = useSWR<Requirement[]>(REQUIREMENTS_KEY);
+  const { data: subjectsData, isLoading: subjectsLoading } = useSWR<Subject[]>(SUBJECTS_KEY);
+  const { data: gradesData, isLoading: gradesLoading } = useSWR<Grade[]>(GRADES_KEY);
+  const { data: classesData, isLoading: classesLoading } = useSWR<ClassRoom[]>(CLASSES_KEY);
+
+  const list = Array.isArray(listData) ? listData : [];
+  const subjects = Array.isArray(subjectsData) ? subjectsData : [];
+  const grades = Array.isArray(gradesData) ? gradesData : [];
+  const classes = Array.isArray(classesData) ? classesData : [];
+  const loading = listLoading || subjectsLoading || gradesLoading || classesLoading;
+
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [form, setForm] = useState({
     gradeId: "",
@@ -45,21 +58,6 @@ export default function RequirementsPage() {
     maxPerDay: 2,
     avoidConsecutive: false,
   });
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/requirements").then((r) => r.json()),
-      fetch("/api/subjects").then((r) => r.json()),
-      fetch("/api/grades").then((r) => r.json()),
-      fetch("/api/classes").then((r) => r.json()),
-    ]).then(([req, sub, g, c]) => {
-      setList(Array.isArray(req) ? req : []);
-      setSubjects(Array.isArray(sub) ? sub : []);
-      setGrades(Array.isArray(g) ? g : []);
-      setClasses(Array.isArray(c) ? c : []);
-      setLoading(false);
-    });
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,9 +102,7 @@ export default function RequirementsPage() {
         maxPerDay: 2,
         avoidConsecutive: false,
       });
-      const res = await fetch("/api/requirements");
-      const data = await res.json();
-      setList(Array.isArray(data) ? data : []);
+      void mutate(REQUIREMENTS_KEY);
     } catch {
       alert("Failed.");
     }
@@ -115,7 +111,7 @@ export default function RequirementsPage() {
   async function deleteReq(id: string) {
     try {
       await fetch(`/api/requirements/${id}`, { method: "DELETE" });
-      setList((prev) => prev.filter((r) => r.id !== id));
+      void mutate(REQUIREMENTS_KEY);
       if (editing?.id === id) {
         setEditing(null);
         setForm({

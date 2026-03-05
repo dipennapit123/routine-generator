@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 interface Subject {
   id: string;
@@ -11,9 +12,23 @@ interface Subject {
 }
 
 export default function SubjectsPage() {
-  const [list, setList] = useState<Subject[]>([]);
-  const [resourceTypes, setResourceTypes] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  const { data: listData, isLoading: listLoading } = useSWR<Subject[]>("/api/subjects");
+  const { data: resourcesData } = useSWR<{ type?: string }[]>("/api/resources");
+
+  const list = Array.isArray(listData) ? listData : [];
+  const resourceTypes = useMemo(() => {
+    if (!Array.isArray(resourcesData)) return [];
+    return Array.from(
+      new Set(
+        resourcesData
+          .map((r) => r.type)
+          .filter((t): t is string => typeof t === "string" && t.length > 0)
+      )
+    );
+  }, [resourcesData]);
+  const loading = listLoading;
+
   const [modal, setModal] = useState<Subject | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -21,28 +36,6 @@ export default function SubjectsPage() {
     requiresResource: false,
     resourceType: null as string | null,
   });
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/subjects").then((r) => r.json()),
-      fetch("/api/resources").then((r) => r.json()).catch(() => []),
-    ])
-      .then(([subjectsData, resourcesData]) => {
-        setList(Array.isArray(subjectsData) ? subjectsData : []);
-        if (Array.isArray(resourcesData)) {
-          const types = Array.from(
-            new Set(
-              resourcesData
-                .map((r: { type?: string }) => r.type)
-                .filter((t): t is string => typeof t === "string" && t.length > 0)
-            )
-          );
-          setResourceTypes(types);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
 
   function openAdd() {
     setForm({ name: "", type: "THEORY", requiresResource: false, resourceType: null });
@@ -81,9 +74,7 @@ export default function SubjectsPage() {
         });
       }
       setModal(null);
-      const res = await fetch("/api/subjects");
-      const data = await res.json();
-      setList(Array.isArray(data) ? data : []);
+      void mutate("/api/subjects");
     } catch {
       alert("Failed.");
     }
@@ -93,7 +84,7 @@ export default function SubjectsPage() {
     if (!confirm("Delete?")) return;
     try {
       await fetch(`/api/subjects/${id}`, { method: "DELETE" });
-      setList((prev) => prev.filter((s) => s.id !== id));
+      void mutate("/api/subjects");
     } catch {
       alert("Failed.");
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 interface ClassRoom {
   id: string;
@@ -29,39 +30,38 @@ interface TeacherSubjectEntry {
   subjectId: string;
 }
 
+const ASSIGNMENTS_KEY = "/api/assignments";
+const CLASSES_KEY = "/api/classes";
+const SUBJECTS_KEY = "/api/subjects";
+const TEACHERS_KEY = "/api/teachers";
+const GRADES_KEY = "/api/grades";
+const TEACHER_SUBJECT_KEY = "/api/teacher-subject";
+const CLASS_TEACHER_KEY = "/api/class-teacher";
+const GRADE_MODES_KEY = "/api/grade-modes";
+
 export default function AssignmentsPage() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [classes, setClasses] = useState<ClassRoom[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [grades, setGrades] = useState<{ id: string; number: number | null; label: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  const { data: assignmentsData, isLoading: assignmentsLoading } = useSWR<Assignment[]>(ASSIGNMENTS_KEY);
+  const { data: classesData, isLoading: classesLoading } = useSWR<ClassRoom[]>(CLASSES_KEY);
+  const { data: subjectsData, isLoading: subjectsLoading } = useSWR<Subject[]>(SUBJECTS_KEY);
+  const { data: teachersData, isLoading: teachersLoading } = useSWR<Teacher[]>(TEACHERS_KEY);
+  const { data: gradesData, isLoading: gradesLoading } = useSWR<{ id: string; number: number | null; label: string }[]>(GRADES_KEY);
+  const { data: tsData } = useSWR<{ teacherId: string; subjectId: string }[]>(TEACHER_SUBJECT_KEY);
+  const { data: ctData } = useSWR<{ classId: string; teacherId: string }[]>(CLASS_TEACHER_KEY);
+  const { data: gmData } = useSWR<{ gradeId: string; mode: string }[]>(GRADE_MODES_KEY);
+
+  const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+  const classes = Array.isArray(classesData) ? classesData : [];
+  const subjects = Array.isArray(subjectsData) ? subjectsData : [];
+  const teachers = Array.isArray(teachersData) ? teachersData : [];
+  const grades = Array.isArray(gradesData) ? gradesData : [];
+  const teacherSubjects = Array.isArray(tsData) ? tsData.map((x) => ({ teacherId: x.teacherId, subjectId: x.subjectId })) : [];
+  const classTeacherMap = Array.isArray(ctData) ? Object.fromEntries(ctData.map((ct) => [ct.classId, ct.teacherId])) : {};
+  const gradeModes = Array.isArray(gmData) ? Object.fromEntries(gmData.map((gm) => [gm.gradeId, gm.mode])) : {};
+
+  const loading = assignmentsLoading || classesLoading || subjectsLoading || teachersLoading || gradesLoading;
   const [form, setForm] = useState({ classId: "", subjectId: "", teacherId: "" });
   const [editingKey, setEditingKey] = useState<{ classId: string; subjectId: string } | null>(null);
-  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectEntry[]>([]);
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/assignments").then((r) => r.json()),
-      fetch("/api/classes").then((r) => r.json()),
-      fetch("/api/subjects").then((r) => r.json()),
-      fetch("/api/teachers").then((r) => r.json()),
-      fetch("/api/grades").then((r) => r.json()),
-      fetch("/api/teacher-subject").then((r) => r.json()).catch(() => []),
-    ]).then(([a, c, s, t, g, ts]) => {
-      setAssignments(Array.isArray(a) ? a : []);
-      setClasses(Array.isArray(c) ? c : []);
-      setSubjects(Array.isArray(s) ? s : []);
-      setTeachers(Array.isArray(t) ? t : []);
-      setGrades(Array.isArray(g) ? g : []);
-      if (Array.isArray(ts)) {
-        setTeacherSubjects(
-          ts.map((x: any) => ({ teacherId: x.teacherId, subjectId: x.subjectId }))
-        );
-      }
-      setLoading(false);
-    });
-  }, []);
 
   async function handleClassTeacher(classId: string, teacherId: string) {
     try {
@@ -70,9 +70,7 @@ export default function AssignmentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ classId, teacherId }),
       });
-      const res = await fetch("/api/assignments");
-      const data = await res.json();
-      setAssignments(Array.isArray(data) ? data : []);
+      void mutate(CLASS_TEACHER_KEY);
     } catch {
       alert("Failed.");
     }
@@ -89,9 +87,7 @@ export default function AssignmentsPage() {
       });
       setForm({ classId: "", subjectId: "", teacherId: "" });
       setEditingKey(null);
-      const res = await fetch("/api/assignments");
-      const data = await res.json();
-      setAssignments(Array.isArray(data) ? data : []);
+      void mutate(ASSIGNMENTS_KEY);
     } catch {
       alert("Failed.");
     }
@@ -100,7 +96,7 @@ export default function AssignmentsPage() {
   async function deleteAssignment(classId: string, subjectId: string) {
     try {
       await fetch(`/api/assignments?classId=${classId}&subjectId=${subjectId}`, { method: "DELETE" });
-      setAssignments((prev) => prev.filter((a) => a.classId !== classId || a.subjectId !== subjectId));
+      void mutate(ASSIGNMENTS_KEY);
       if (editingKey && editingKey.classId === classId && editingKey.subjectId === subjectId) {
         setEditingKey(null);
         setForm({ classId: "", subjectId: "", teacherId: "" });
@@ -110,29 +106,6 @@ export default function AssignmentsPage() {
     }
   }
 
-  const [classTeacherMap, setClassTeacherMap] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    fetch("/api/class-teacher")
-      .then((r) => r.json())
-      .then((list) => {
-        const m: Record<string, string> = {};
-        if (Array.isArray(list)) list.forEach((ct: { classId: string; teacherId: string }) => (m[ct.classId] = ct.teacherId));
-        setClassTeacherMap(m);
-      });
-  }, []);
-
-  const [gradeModes, setGradeModes] = useState<Record<string, string>>({});
-  useEffect(() => {
-    fetch("/api/grade-modes")
-      .then((r) => r.json())
-      .then((list) => {
-        const m: Record<string, string> = {};
-        if (Array.isArray(list)) list.forEach((gm: { gradeId: string; mode: string }) => (m[gm.gradeId] = gm.mode));
-        setGradeModes(m);
-      });
-  }, []);
-
   async function setGradeMode(gradeId: string, mode: string) {
     try {
       await fetch("/api/grade-modes", {
@@ -140,7 +113,7 @@ export default function AssignmentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gradeId, mode }),
       });
-      setGradeModes((prev) => ({ ...prev, [gradeId]: mode }));
+      void mutate(GRADE_MODES_KEY);
     } catch {
       alert("Failed.");
     }

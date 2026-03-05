@@ -2,28 +2,20 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import useSWR from "swr";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 
 function AvailabilityContent() {
   const searchParams = useSearchParams();
   const teacherIdParam = searchParams.get("teacherId");
-  const [teachers, setTeachers] = useState<{ id: string; name: string }[]>([]);
+  const { data: teachersData, isLoading: teachersLoading } = useSWR<{ id: string; name: string }[]>("/api/teachers");
+  const teachers = Array.isArray(teachersData) ? teachersData : [];
   const [teacherId, setTeacherId] = useState(teacherIdParam ?? "");
   const [grid, setGrid] = useState<Record<string, string>>({});
   const [periods, setPeriods] = useState(8);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/teachers")
-      .then((r) => r.json())
-      .then((data) => {
-        setTeachers(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  const loading = teachersLoading;
   useEffect(() => {
     if (teacherIdParam) setTeacherId(teacherIdParam);
   }, [teacherIdParam]);

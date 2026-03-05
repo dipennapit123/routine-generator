@@ -56,7 +56,10 @@ async function main() {
     });
   }
 
-  const grades = await prisma.grade.findMany({ orderBy: { number: "asc" } });
+  const grades = await prisma.grade.findMany({
+    orderBy: { number: "asc" },
+    select: { id: true, number: true, label: true },
+  });
   const classRooms: { id: string; displayName: string; gradeId: string }[] = [];
 
   for (const g of grades) {
@@ -70,7 +73,7 @@ async function main() {
         create: {
           gradeId: g.id,
           sectionId: section.id,
-          displayName: `${g.label ?? (g.number != null ? `Grade ${g.number}` : "Class")}-${name}`,
+          displayName: `${g.number != null ? `Grade ${g.number}` : g.label}-${name}`,
         },
         update: {},
       });

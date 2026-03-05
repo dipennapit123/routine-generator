@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import useSWR, { useSWRConfig } from "swr";
 
 interface Version {
   id: string;
@@ -12,10 +13,13 @@ interface Version {
   _count?: { routineSlots: number };
 }
 
+const ROUTINE_KEY = "/api/routine";
+
 export default function RoutinePage() {
   const router = useRouter();
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  const { data: versionsData, isLoading: loading } = useSWR<Version[]>(ROUTINE_KEY);
+  const versions = Array.isArray(versionsData) ? versionsData : [];
   const [modal, setModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateOpts, setGenerateOpts] = useState({
@@ -29,16 +33,6 @@ export default function RoutinePage() {
     firstPeriodPriorityOverride: true as boolean | undefined,
     seed: undefined as number | undefined,
   });
-
-  useEffect(() => {
-    fetch("/api/routine")
-      .then((r) => r.json())
-      .then((data) => {
-        setVersions(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
 
   useEffect(() => {
     const q = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
@@ -93,7 +87,7 @@ export default function RoutinePage() {
   async function archive(versionId: string) {
     try {
       await fetch(`/api/routine/${versionId}/archive`, { method: "POST" });
-      setVersions((prev) => prev.map((v) => (v.id === versionId ? { ...v, status: "ARCHIVED" } : v)));
+      void mutate(ROUTINE_KEY);
     } catch {
       alert("Failed.");
     }
@@ -103,7 +97,7 @@ export default function RoutinePage() {
     if (!confirm("Delete this routine permanently? This cannot be undone.")) return;
     try {
       await fetch(`/api/routine/${versionId}`, { method: "DELETE" });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+      void mutate(ROUTINE_KEY);
     } catch {
       alert("Failed to delete.");
     }

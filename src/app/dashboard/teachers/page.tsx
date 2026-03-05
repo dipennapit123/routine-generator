@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 interface Teacher {
   id: string;
@@ -30,13 +31,27 @@ interface TeacherSubjectEntry {
   subjectId: string;
 }
 
+const TEACHERS_KEY = "/api/teachers";
+const CLASSES_KEY = "/api/classes";
+const CLASS_TEACHER_KEY = "/api/class-teacher";
+const SUBJECTS_KEY = "/api/subjects";
+const TEACHER_SUBJECT_KEY = "/api/teacher-subject";
+
 export default function TeachersPage() {
-  const [list, setList] = useState<Teacher[]>([]);
-  const [classes, setClasses] = useState<ClassRoom[]>([]);
-  const [classTeacherList, setClassTeacherList] = useState<ClassTeacherEntry[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [teacherSubjectList, setTeacherSubjectList] = useState<TeacherSubjectEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  const { data: listData, isLoading: listLoading } = useSWR<Teacher[]>(TEACHERS_KEY);
+  const { data: classesData } = useSWR<ClassRoom[]>(CLASSES_KEY);
+  const { data: ctData } = useSWR<ClassTeacherEntry[]>(CLASS_TEACHER_KEY);
+  const { data: subjectsData } = useSWR<Subject[]>(SUBJECTS_KEY);
+  const { data: tsData } = useSWR<{ teacherId: string; subjectId: string }[]>(TEACHER_SUBJECT_KEY);
+
+  const list = Array.isArray(listData) ? listData : [];
+  const classes = Array.isArray(classesData) ? classesData : [];
+  const classTeacherList = Array.isArray(ctData) ? ctData : [];
+  const subjects = Array.isArray(subjectsData) ? subjectsData : [];
+  const teacherSubjectList = Array.isArray(tsData) ? tsData.map((x) => ({ teacherId: x.teacherId, subjectId: x.subjectId })) : [];
+  const loading = listLoading;
+
   const [modal, setModal] = useState<Teacher | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -46,27 +61,6 @@ export default function TeachersPage() {
     classTeacherFor: [] as string[],
     subjectsFor: [] as string[],
   });
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/teachers").then((r) => r.json()),
-      fetch("/api/classes").then((r) => r.json()),
-      fetch("/api/class-teacher").then((r) => r.json()),
-      fetch("/api/subjects").then((r) => r.json()),
-      fetch("/api/teacher-subject").then((r) => r.json()).catch(() => []),
-    ]).then(([teachersData, classesData, ctData, subjectsData, tsData]) => {
-      setList(Array.isArray(teachersData) ? teachersData : []);
-      setClasses(Array.isArray(classesData) ? classesData : []);
-      setClassTeacherList(Array.isArray(ctData) ? ctData : []);
-      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
-      if (Array.isArray(tsData)) {
-        setTeacherSubjectList(
-          tsData.map((x: any) => ({ teacherId: x.teacherId, subjectId: x.subjectId }))
-        );
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
 
   function openAdd() {
     setForm({
@@ -176,12 +170,9 @@ export default function TeachersPage() {
         }
       }
       setModal(null);
-      const [teachersRes, ctRes] = await Promise.all([
-        fetch("/api/teachers"),
-        fetch("/api/class-teacher"),
-      ]);
-      setList(Array.isArray(await teachersRes.json()) ? await teachersRes.json() : []);
-      setClassTeacherList(Array.isArray(await ctRes.json()) ? await ctRes.json() : []);
+      void mutate(TEACHERS_KEY);
+      void mutate(CLASS_TEACHER_KEY);
+      void mutate(TEACHER_SUBJECT_KEY);
     } catch {
       alert("Failed.");
     }
@@ -191,7 +182,8 @@ export default function TeachersPage() {
     if (!confirm("Delete?")) return;
     try {
       await fetch(`/api/teachers/${id}`, { method: "DELETE" });
-      setList((prev) => prev.filter((t) => t.id !== id));
+      void mutate(TEACHERS_KEY);
+      void mutate(CLASS_TEACHER_KEY);
     } catch {
       alert("Failed.");
     }

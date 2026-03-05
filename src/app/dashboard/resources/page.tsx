@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 interface Resource {
   id: string;
@@ -9,20 +10,13 @@ interface Resource {
   capacity: number;
 }
 
-export default function ResourcesPage() {
-  const [list, setList] = useState<Resource[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", type: "SCIENCE_LAB" as string, capacity: 1 });
+const RESOURCES_KEY = "/api/resources";
 
-  useEffect(() => {
-    fetch("/api/resources")
-      .then((r) => r.json())
-      .then((data) => {
-        setList(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+export default function ResourcesPage() {
+  const { mutate } = useSWRConfig();
+  const { data: listData, isLoading: loading } = useSWR<Resource[]>(RESOURCES_KEY);
+  const list = Array.isArray(listData) ? listData : [];
+  const [form, setForm] = useState({ name: "", type: "SCIENCE_LAB" as string, capacity: 1 });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,9 +28,7 @@ export default function ResourcesPage() {
         body: JSON.stringify(form),
       });
       setForm({ name: "", type: "SCIENCE_LAB", capacity: 1 });
-      const res = await fetch("/api/resources");
-      const data = await res.json();
-      setList(Array.isArray(data) ? data : []);
+      void mutate(RESOURCES_KEY);
     } catch {
       alert("Failed.");
     }
@@ -46,7 +38,7 @@ export default function ResourcesPage() {
     if (!confirm("Delete?")) return;
     try {
       await fetch(`/api/resources/${id}`, { method: "DELETE" });
-      setList((prev) => prev.filter((r) => r.id !== id));
+      void mutate(RESOURCES_KEY);
     } catch {
       alert("Failed.");
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 type SubTab = "grades" | "sections" | "classes";
 
@@ -25,12 +26,21 @@ interface ClassRoom {
   section: { name: string };
 }
 
+const GRADES_KEY = "/api/grades";
+const SECTIONS_KEY = "/api/sections";
+const CLASSES_KEY = "/api/classes";
+
 export default function GradesClassesPage() {
+  const { mutate } = useSWRConfig();
   const [activeTab, setActiveTab] = useState<SubTab>("grades");
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [sections, setSections] = useState<SectionWithGrade[]>([]);
-  const [classes, setClasses] = useState<ClassRoom[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: gradesData, isLoading: gradesLoading } = useSWR<Grade[]>(GRADES_KEY);
+  const { data: sectionsData, isLoading: sectionsLoading } = useSWR<SectionWithGrade[]>(SECTIONS_KEY);
+  const { data: classesData, isLoading: classesLoading } = useSWR<ClassRoom[]>(CLASSES_KEY);
+
+  const grades = Array.isArray(gradesData) ? gradesData : [];
+  const sections = Array.isArray(sectionsData) ? sectionsData : [];
+  const classes = Array.isArray(classesData) ? classesData : [];
+  const loading = gradesLoading || sectionsLoading || classesLoading;
 
   const [newGrade, setNewGrade] = useState("");
   const [newNamedGrade, setNewNamedGrade] = useState("");
@@ -44,22 +54,11 @@ export default function GradesClassesPage() {
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editClassName, setEditClassName] = useState("");
 
-  function load() {
-    Promise.all([
-      fetch("/api/grades").then((r) => r.json()),
-      fetch("/api/sections").then((r) => r.json()),
-      fetch("/api/classes").then((r) => r.json()),
-    ]).then(([g, s, c]) => {
-      setGrades(Array.isArray(g) ? g : []);
-      setSections(Array.isArray(s) ? s : []);
-      setClasses(Array.isArray(c) ? c : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+  function revalidate() {
+    void mutate(GRADES_KEY);
+    void mutate(SECTIONS_KEY);
+    void mutate(CLASSES_KEY);
   }
-
-  useEffect(() => {
-    load();
-  }, []);
 
   async function addGrade(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +83,7 @@ export default function GradesClassesPage() {
         return;
       }
       setNewGrade("");
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -112,7 +111,7 @@ export default function GradesClassesPage() {
         return;
       }
       setNewNamedGrade("");
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -131,7 +130,7 @@ export default function GradesClassesPage() {
         body: JSON.stringify({ gradeId: newSection.gradeId, name: newSection.name.trim() }),
       });
       setNewSection({ gradeId: "", name: "" });
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -155,7 +154,7 @@ export default function GradesClassesPage() {
         return;
       }
       setNewClass({ gradeId: "", sectionId: "" });
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -165,7 +164,7 @@ export default function GradesClassesPage() {
     if (!confirm("Delete grade and all sections/classes?")) return;
     try {
       await fetch(`/api/grades/${id}`, { method: "DELETE" });
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -174,7 +173,7 @@ export default function GradesClassesPage() {
   async function deleteSection(id: string) {
     try {
       await fetch(`/api/sections/${id}`, { method: "DELETE" });
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -183,7 +182,7 @@ export default function GradesClassesPage() {
   async function deleteClass(id: string) {
     try {
       await fetch(`/api/classes/${id}`, { method: "DELETE" });
-      load();
+      revalidate();
     } catch {
       alert("Failed.");
     }
@@ -215,7 +214,7 @@ export default function GradesClassesPage() {
 
       {/* Sub-option menu */}
       <nav
-        className="mb-6 flex gap-1 rounded-lg bg-[var(--bg-sidebar)]/60 p-1"
+        className="mb-6 flex gap-1 rounded-lg bg-(--bg-sidebar)/60 p-1"
         style={{ width: "fit-content" }}
       >
         {subTabs.map((tab) => (
@@ -225,7 +224,7 @@ export default function GradesClassesPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? "bg-[var(--bg-sidebar-active)] text-[var(--text-sidebar-active)]"
+                ? "bg-(--bg-sidebar-active) text-(--text-sidebar-active)"
                 : "text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
             }`}
           >
@@ -285,7 +284,7 @@ export default function GradesClassesPage() {
                         }
                         return;
                       }
-                      load();
+                      revalidate();
                     } catch {
                       alert("Failed to add grade.");
                     }
@@ -317,7 +316,7 @@ export default function GradesClassesPage() {
                   setEditingGrade(null);
                   setEditNumber("");
                   setEditLabel("");
-                  load();
+                  revalidate();
                 } catch {
                   alert("Failed to update grade.");
                 }
@@ -539,7 +538,7 @@ export default function GradesClassesPage() {
                                 });
                                 setEditingClassId(null);
                                 setEditClassName("");
-                                load();
+                                revalidate();
                               } catch {
                                 alert("Failed to update class.");
                               }
