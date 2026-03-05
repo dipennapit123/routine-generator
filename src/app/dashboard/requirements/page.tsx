@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
+import { Pagination, TABLE_PAGE_SIZE } from "@/components/Pagination";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 
 interface Subject {
   id: string;
@@ -47,7 +50,9 @@ export default function RequirementsPage() {
   const grades = Array.isArray(gradesData) ? gradesData : [];
   const classes = Array.isArray(classesData) ? classesData : [];
   const loading = listLoading || subjectsLoading || gradesLoading || classesLoading;
-
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [form, setForm] = useState({
     gradeId: "",
@@ -65,6 +70,7 @@ export default function RequirementsPage() {
       alert("Set either grade or class, and subject.");
       return;
     }
+    setSaving(true);
     try {
       if (editing) {
         await fetch(`/api/requirements/${editing.id}`, {
@@ -77,6 +83,7 @@ export default function RequirementsPage() {
             avoidConsecutive: form.avoidConsecutive,
           }),
         });
+        toast.success("Requirement updated");
       } else {
         await fetch("/api/requirements", {
           method: "POST",
@@ -91,6 +98,7 @@ export default function RequirementsPage() {
             avoidConsecutive: form.avoidConsecutive,
           }),
         });
+        toast.success("Requirement added");
       }
       setEditing(null);
       setForm({
@@ -104,7 +112,9 @@ export default function RequirementsPage() {
       });
       void mutate(REQUIREMENTS_KEY);
     } catch {
-      alert("Failed.");
+      toast.error("Failed to save.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -221,8 +231,9 @@ export default function RequirementsPage() {
           />
           Avoid consecutive
         </label>
-        <button type="submit" className="btn-primary">
-          {editing ? "Save changes" : "Add"}
+        <button type="submit" disabled={saving} className="btn-primary inline-flex items-center gap-2">
+        {saving ? <Spinner /> : null}
+        {saving ? "Saving…" : editing ? "Save changes" : "Add"}
         </button>
         {editing && (
           <button
@@ -258,7 +269,9 @@ export default function RequirementsPage() {
           </tr>
         </thead>
         <tbody>
-          {list.map((r) => (
+          {list
+            .slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE)
+            .map((r) => (
             <tr key={r.id}>
               <td>
                 {r.classRoom?.displayName ??
@@ -298,6 +311,13 @@ export default function RequirementsPage() {
         </tbody>
       </table>
       </div>
+      <Pagination
+        totalItems={list.length}
+        currentPage={tablePage}
+        pageSize={TABLE_PAGE_SIZE}
+        onPageChange={setTablePage}
+        label="requirements"
+      />
     </div>
   );
 }

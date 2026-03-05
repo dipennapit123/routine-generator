@@ -109,6 +109,15 @@ All under `app/api/`:
 - `npm run db:migrate` — Run migrations
 - `npm run db:seed` — Seed demo data
 
+## Database performance (faster data to frontend)
+
+- **Indexes** — The Prisma schema includes indexes on frequently queried/sorted columns (e.g. `Teacher.name`, `ClassRoom.gradeId`, `Subject.name`, `Section(gradeId, name)`, `RoutineVersion.createdAt`, `TeacherAssignment.classId`, `SubjectRequirement.gradeId`/`classId`). After changing the schema, run `npx prisma db push` so the database has these indexes.
+- **Connection pooling (serverless)** — On Vercel, each request can open a new DB connection. Use a **pooled** connection string from your provider so the database stays fast under load:
+  - **Neon**: In the Neon dashboard, use the **pooled** connection string (or add `?pgbouncer=true` if documented).
+  - **Supabase**: Use the **Transaction** or **Session** pooler URL from Project Settings → Database (not the direct connection).
+  - **Vercel Postgres**: Use the URL Vercel provides for the project; it is typically already pooled.
+- **Frontend** — The app uses **SWR** to cache list data when switching dashboard sections, so repeat visits to a page are instant from cache while revalidating in the background.
+
 ## No authentication
 
 The app has no login or auth. The dashboard is open at `/dashboard`. Use only on trusted networks or behind your own auth (e.g. reverse proxy).

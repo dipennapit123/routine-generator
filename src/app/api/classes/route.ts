@@ -15,7 +15,18 @@ export async function GET(request: Request) {
         gradeId: true,
         sectionId: true,
         grade: { select: { id: true, number: true, label: true } },
-        section: { select: { id: true, name: true } },
+        section: {
+          select: {
+            id: true,
+            name: true,
+            semesterId: true,
+            semester: { select: { id: true, number: true } },
+            facultyId: true,
+            faculty: { select: { id: true, name: true } },
+            groupId: true,
+            group: { select: { id: true, name: true } },
+          },
+        },
         classTeacher: { select: { teacher: { select: { id: true, name: true } } } },
       },
       orderBy: [{ grade: { label: "asc" } }, { section: { name: "asc" } }, { displayName: "asc" }],
@@ -34,16 +45,41 @@ export async function POST(request: Request) {
     const grade = await prisma.grade.findUniqueOrThrow({ where: { id: data.gradeId } });
     const section = await prisma.section.findUniqueOrThrow({
       where: { id: data.sectionId },
-      include: { grade: true },
+      include: { grade: true, faculty: true, group: true, semester: true },
     });
     if (section.gradeId !== data.gradeId) {
       return NextResponse.json({ error: "Section does not belong to grade" }, { status: 400 });
     }
     const gradePart = grade.number != null ? `Grade ${grade.number}` : grade.label;
-    const displayName = data.displayName ?? `${gradePart}-${section.name}`;
+    const semPart =
+      section.semester != null ? ` Sem ${section.semester.number}` : "";
+    const facultyPart =
+      section.faculty && section.faculty.name !== "General"
+        ? ` ${section.faculty.name}`
+        : "";
+    const groupPart = section.group ? ` ${section.group.name}` : "";
+    const displayName =
+      data.displayName ??
+      (`${gradePart}${semPart}${facultyPart}${groupPart}-${section.name}`.replace(/^\s+|\s+$/g, "").replace(/\s+/g, " ") ||
+        `${gradePart}-${section.name}`);
     const created = await prisma.classRoom.create({
       data: { gradeId: data.gradeId, sectionId: data.sectionId, displayName },
-      include: { grade: true, section: true },
+      select: {
+        id: true,
+        displayName: true,
+        gradeId: true,
+        sectionId: true,
+        grade: { select: { id: true, number: true, label: true } },
+        section: {
+          select: {
+            id: true,
+            name: true,
+            semester: { select: { id: true, number: true } },
+            faculty: { select: { id: true, name: true } },
+            group: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
     return NextResponse.json(created);
   } catch (e) {

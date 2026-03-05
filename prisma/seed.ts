@@ -1,5 +1,13 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
+// Never run seed against production by accident (protects user data on server).
+const isProduction = process.env.NODE_ENV === "production";
+const allowSeedInProduction = process.env.ALLOW_SEED_IN_PRODUCTION === "true";
+if (isProduction && !allowSeedInProduction) {
+  console.error("Seed is disabled in production. Set ALLOW_SEED_IN_PRODUCTION=true to override.");
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -63,18 +71,25 @@ async function main() {
   const classRooms: { id: string; displayName: string; gradeId: string }[] = [];
 
   for (const g of grades) {
+    let faculty = await prisma.faculty.findFirst({ where: { gradeId: g.id, name: "General" } });
+    if (!faculty) {
+      faculty = await prisma.faculty.create({ data: { gradeId: g.id, name: "General" } });
+    }
     for (const name of ["A", "B"]) {
-      let section = await prisma.section.findFirst({ where: { gradeId: g.id, name } });
+      let section = await prisma.section.findFirst({
+        where: { gradeId: g.id, facultyId: faculty.id, name },
+      });
       if (!section) {
-        section = await prisma.section.create({ data: { gradeId: g.id, name } });
+        section = await prisma.section.create({
+          data: { gradeId: g.id, facultyId: faculty.id, name },
+        });
       }
+      const gradePart = g.number != null ? `Grade ${g.number}` : g.label;
+      const facultyPart = faculty.name !== "General" ? ` ${faculty.name}` : "";
+      const displayName = `${gradePart}${facultyPart}-${name}`;
       const room = await prisma.classRoom.upsert({
         where: { gradeId_sectionId: { gradeId: g.id, sectionId: section.id } },
-        create: {
-          gradeId: g.id,
-          sectionId: section.id,
-          displayName: `${g.number != null ? `Grade ${g.number}` : g.label}-${name}`,
-        },
+        create: { gradeId: g.id, sectionId: section.id, displayName },
         update: {},
       });
       classRooms.push(room);

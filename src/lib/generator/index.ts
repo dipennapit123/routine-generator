@@ -153,7 +153,7 @@ export async function generateRoutine(params: {
   }
   if (requirements.length === 0 && classRooms.length > 0 && subjects.length > 0 && teachers.length > 0) {
     minimumErrors.push(
-      "Minimum requirement: ensure each class has subject requirements AND subject/class teachers assigned in 'Assignments'."
+      "Minimum requirement: ensure each class has subject requirements AND subject/class teachers assigned in 'Appointing'."
     );
   }
   if (minimumErrors.length > 0) {

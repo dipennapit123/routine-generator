@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
+import { Pagination, TABLE_PAGE_SIZE } from "@/components/Pagination";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 
 interface Subject {
   id: string;
@@ -28,7 +31,9 @@ export default function SubjectsPage() {
     );
   }, [resourcesData]);
   const loading = listLoading;
-
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
   const [modal, setModal] = useState<Subject | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -59,6 +64,7 @@ export default function SubjectsPage() {
       alert("Select resource type when subject requires resource.");
       return;
     }
+    setSaving(true);
     try {
       if (modal?.id) {
         await fetch(`/api/subjects/${modal.id}`, {
@@ -66,17 +72,23 @@ export default function SubjectsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
+        setModal(null);
+        void mutate("/api/subjects");
+        toast.success("Subject updated");
       } else {
         await fetch("/api/subjects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
+        setModal(null);
+        void mutate("/api/subjects");
+        toast.success("Subject added");
       }
-      setModal(null);
-      void mutate("/api/subjects");
     } catch {
-      alert("Failed.");
+      toast.error("Failed to save.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -124,7 +136,9 @@ export default function SubjectsPage() {
           </tr>
         </thead>
         <tbody>
-          {list.map((s) => (
+          {list
+            .slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE)
+            .map((s) => (
             <tr key={s.id}>
               <td className="font-medium">{s.name}</td>
               <td>{s.type}</td>
@@ -143,6 +157,13 @@ export default function SubjectsPage() {
         </tbody>
       </table>
       </div>
+      <Pagination
+        totalItems={list.length}
+        currentPage={tablePage}
+        pageSize={TABLE_PAGE_SIZE}
+        onPageChange={setTablePage}
+        label="subjects"
+      />
 
       {modal && (
         <div className="modal-overlay fixed inset-0 z-10 flex items-center justify-center p-4">
@@ -202,7 +223,10 @@ export default function SubjectsPage() {
               )}
             </div>
             <div className="mt-6 flex gap-3">
-              <button type="submit" className="btn-primary">Save</button>
+              <button type="submit" disabled={saving} className="btn-primary inline-flex items-center gap-2">
+                {saving ? <Spinner /> : null}
+                {saving ? "Saving…" : "Save"}
+              </button>
               <button type="button" onClick={() => setModal(null)} className="btn-secondary">Cancel</button>
             </div>
           </form>

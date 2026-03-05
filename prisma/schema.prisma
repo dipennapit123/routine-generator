@@ -17,13 +17,15 @@ model SchoolSetting {
 }
 
 model ScheduleConfig {
-  id             String   @id @default(cuid())
-  type           String   // LOWER | HIGHER
-  periodsPerDay  Int
-  periodDuration Int      // minutes
-  breaks         Json     // [{ type: "SHORT"|"LUNCH", afterPeriod: number, duration: number }]
-  assembly       Json?    // { periodIndex: number, duration: number } | null
-  createdAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  type            String   // LOWER | HIGHER | PRE_PRIMARY | etc.
+  periodsPerDay   Int
+  periodDuration  Int      // class duration in minutes
+  classStartTime  String?  // e.g. "09:00"
+  classEndTime    String?  // e.g. "15:30"
+  breaks          Json     // [{ type: "SHORT"|"LUNCH", afterPeriod: number, duration: number }]
+  assembly        Json?    // { periodIndex: number, duration: number } | null
+  createdAt       DateTime @updatedAt
 
   @@unique([type])
 }
@@ -32,18 +34,66 @@ model Grade {
   id                   String                @id @default(cuid())
   number               Int?                  @unique
   label                String                @unique
+  faculties            Faculty[]
+  semesters            Semester[]
   sections             Section[]
   classRooms           ClassRoom[]
   gradeModes           GradeMode[]
   subjectRequirements  SubjectRequirement[]
+  teacherGrades        TeacherGrade[]
+}
+
+model Semester {
+  id        String    @id @default(cuid())
+  gradeId  String
+  number   Int       // 1-8 for Bachelor, 1-4 for Master
+  grade    Grade     @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  sections Section[]
+
+  @@unique([gradeId, number])
+  @@index([gradeId])
+}
+
+model Faculty {
+  id             String        @id @default(cuid())
+  name           String        // e.g. Science, Commerce, BSc CS, MBA (only for grade 11, 12, Bachelor, Master)
+  gradeId        String
+  grade          Grade         @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  groups         Group[]
+  sections       Section[]
+  teacherGrades  TeacherGrade[]
+
+  @@unique([gradeId, name])
+  @@index([gradeId])
+}
+
+model Group {
+  id             String        @id @default(cuid())
+  name           String        // e.g. Physics, Biology under Science (only for 11, 12, Bachelor, Master)
+  facultyId      String
+  faculty        Faculty       @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  sections       Section[]
+  teacherGrades  TeacherGrade[]
+
+  @@unique([facultyId, name])
+  @@index([facultyId])
 }
 
 model Section {
-  id       String     @id @default(cuid())
-  name     String     // A, B, C...
-  gradeId  String
-  grade    Grade      @relation(fields: [gradeId], references: [id], onDelete: Cascade)
-  classRooms ClassRoom[]
+  id            String        @id @default(cuid())
+  name          String        // A, B, C...
+  gradeId       String
+  grade         Grade         @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  semesterId    String?
+  semester      Semester?     @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  facultyId     String?
+  faculty       Faculty?      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  groupId       String?
+  group         Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  classRooms    ClassRoom[]
+  teacherGrades TeacherGrade[]
+
+  @@index([gradeId, semesterId, facultyId, groupId, name])
 }
 
 model ClassRoom {
@@ -72,6 +122,8 @@ model Subject {
   subjectRequirements SubjectRequirement[]
   teacherSubjects   TeacherSubject[]
   routineSlots RoutineSlot[]
+
+  @@index([name])
 }
 
 model Resource {
@@ -80,6 +132,8 @@ model Resource {
   type   String
   capacity Int    @default(1)
   routineSlots RoutineSlot[]
+
+  @@index([name])
 }
 
 model Teacher {
@@ -91,6 +145,7 @@ model Teacher {
   availability TeacherAvailability[]
   classTeachers ClassTeacher[]
   teacherAssignments TeacherAssignment[]
+  teacherGrades TeacherGrade[]
   subjects     TeacherSubject[]
   routineSlots RoutineSlot[]
 
@@ -105,6 +160,23 @@ model TeacherSubject {
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, subjectId])
+}
+
+model TeacherGrade {
+  id        String   @id @default(cuid())
+  teacherId String
+  gradeId   String
+  facultyId String?
+  groupId   String?
+  sectionId String?
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  grade     Grade    @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  faculty   Faculty? @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  group     Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  section   Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId])
+  @@index([gradeId])
 }
 
 model TeacherAvailability {
@@ -136,6 +208,7 @@ model TeacherAssignment {
   teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@unique([classId, subjectId])
+  @@index([classId])
 }
 
 model GradeMode {
@@ -157,6 +230,9 @@ model SubjectRequirement {
   allowDoublePeriod Boolean @default(false)
   maxPerDay        Int?
   avoidConsecutive Boolean  @default(false)
+
+  @@index([gradeId])
+  @@index([classId])
 }
 
 model RoutineVersion {
@@ -166,6 +242,8 @@ model RoutineVersion {
   configSnapshot Json?
   createdAt      DateTime     @default(now())
   routineSlots   RoutineSlot[]
+
+  @@index([createdAt])
 }
 
 model RoutineSlot {

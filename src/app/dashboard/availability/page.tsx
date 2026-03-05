@@ -3,12 +3,15 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 
 function AvailabilityContent() {
   const searchParams = useSearchParams();
   const teacherIdParam = searchParams.get("teacherId");
+  const toast = useToast();
   const { data: teachersData, isLoading: teachersLoading } = useSWR<{ id: string; name: string }[]>("/api/teachers");
   const teachers = Array.isArray(teachersData) ? teachersData : [];
   const [teacherId, setTeacherId] = useState(teacherIdParam ?? "");
@@ -78,9 +81,9 @@ function AvailabilityContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ teacherId, grid: gridArray }),
       });
-      alert("Saved.");
+      toast.success("Availability saved");
     } catch {
-      alert("Failed to save.");
+      toast.error("Failed to save.");
     } finally {
       setSaving(false);
     }
@@ -118,9 +121,10 @@ function AvailabilityContent() {
           type="button"
           onClick={handleSave}
           disabled={saving || !teacherId}
-          className="btn-primary disabled:opacity-50"
+          className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? <Spinner /> : null}
+          {saving ? "Saving…" : "Save"}
         </button>
       </div>
       <p className="mb-2 text-sm text-slate-600">Click cell to cycle: AVAILABLE → BLOCKED → LEAVE → AVAILABLE</p>

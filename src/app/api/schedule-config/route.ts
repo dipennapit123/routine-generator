@@ -16,18 +16,24 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = scheduleConfigSchema.parse(body);
+    const classStartTime = data.classStartTime ?? null;
+    const classEndTime = data.classEndTime ?? null;
     const created = await prisma.scheduleConfig.upsert({
       where: { type: data.type },
       create: {
         type: data.type,
         periodsPerDay: data.periodsPerDay,
         periodDuration: data.periodDuration,
+        classStartTime,
+        classEndTime,
         breaks: data.breaks as object,
         assembly: data.assembly as object ?? undefined,
       },
       update: {
         periodsPerDay: data.periodsPerDay,
         periodDuration: data.periodDuration,
+        classStartTime,
+        classEndTime,
         breaks: data.breaks as object,
         assembly: data.assembly as object ?? undefined,
       },

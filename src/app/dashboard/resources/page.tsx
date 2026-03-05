@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
+import { Pagination, TABLE_PAGE_SIZE } from "@/components/Pagination";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 
 interface Resource {
   id: string;
@@ -16,11 +19,15 @@ export default function ResourcesPage() {
   const { mutate } = useSWRConfig();
   const { data: listData, isLoading: loading } = useSWR<Resource[]>(RESOURCES_KEY);
   const list = Array.isArray(listData) ? listData : [];
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
   const [form, setForm] = useState({ name: "", type: "SCIENCE_LAB" as string, capacity: 1 });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
+    setSaving(true);
     try {
       await fetch("/api/resources", {
         method: "POST",
@@ -29,8 +36,11 @@ export default function ResourcesPage() {
       });
       setForm({ name: "", type: "SCIENCE_LAB", capacity: 1 });
       void mutate(RESOURCES_KEY);
+      toast.success("Resource added");
     } catch {
-      alert("Failed.");
+      toast.error("Failed to add resource.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -85,7 +95,10 @@ export default function ResourcesPage() {
           onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))}
           className="w-20 rounded border border-slate-300 px-3 py-2"
         />
-        <button type="submit" className="btn-primary">Add Resource</button>
+        <button type="submit" disabled={saving} className="btn-primary inline-flex items-center gap-2">
+        {saving ? <Spinner /> : null}
+        {saving ? "Adding…" : "Add Resource"}
+      </button>
       </form>
       <div className="table-wrapper">
       <table className="w-full border-collapse">
@@ -98,7 +111,9 @@ export default function ResourcesPage() {
           </tr>
         </thead>
         <tbody>
-          {list.map((r) => (
+          {list
+            .slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE)
+            .map((r) => (
             <tr key={r.id}>
               <td className="font-medium">{r.name}</td>
               <td>{r.type}</td>
@@ -113,6 +128,13 @@ export default function ResourcesPage() {
         </tbody>
       </table>
       </div>
+      <Pagination
+        totalItems={list.length}
+        currentPage={tablePage}
+        pageSize={TABLE_PAGE_SIZE}
+        onPageChange={setTablePage}
+        label="resources"
+      />
     </div>
   );
 }

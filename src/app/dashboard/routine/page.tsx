@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
+import { Pagination, TABLE_PAGE_SIZE } from "@/components/Pagination";
 
 interface Version {
   id: string;
@@ -20,6 +21,7 @@ export default function RoutinePage() {
   const { mutate } = useSWRConfig();
   const { data: versionsData, isLoading: loading } = useSWR<Version[]>(ROUTINE_KEY);
   const versions = Array.isArray(versionsData) ? versionsData : [];
+  const [routineTablePage, setRoutineTablePage] = useState(1);
   const [modal, setModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateOpts, setGenerateOpts] = useState({
@@ -127,7 +129,7 @@ export default function RoutinePage() {
           <li>Create <strong>Grades, Sections & Classes</strong> in “Grades &amp; Classes”.</li>
           <li>Add <strong>Subjects</strong> and <strong>Teachers</strong>.</li>
           <li>Define <strong>Subject Requirements</strong> (periods per week) in “Requirements”.</li>
-          <li>In “Assignments”, set <strong>Class Teachers</strong> and assign <strong>Subject Teachers</strong> to each class.</li>
+          <li>In “Appointing”, set <strong>Class Teachers</strong> and assign <strong>Subject Teachers</strong> to each class.</li>
         </ul>
         <p className="mt-2 text-xs text-[var(--text-muted)]">
           The generator will also show a detailed minimum requirement message if anything is still missing.
@@ -145,7 +147,9 @@ export default function RoutinePage() {
             </tr>
           </thead>
           <tbody>
-            {versions.map((v) => (
+            {versions
+              .slice((routineTablePage - 1) * TABLE_PAGE_SIZE, routineTablePage * TABLE_PAGE_SIZE)
+              .map((v) => (
               <tr key={v.id}>
                 <td className="font-medium">{v.name}</td>
                 <td>
@@ -185,6 +189,13 @@ export default function RoutinePage() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        totalItems={versions.length}
+        currentPage={routineTablePage}
+        pageSize={TABLE_PAGE_SIZE}
+        onPageChange={setRoutineTablePage}
+        label="routines"
+      />
 
       {modal && (
         <div className="modal-overlay fixed inset-0 z-10 flex items-center justify-center p-4">

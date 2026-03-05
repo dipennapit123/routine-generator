@@ -7,10 +7,18 @@ export const schoolSettingSchema = z.object({
   weekDays: z.string().optional(),
 });
 
+const timeString = z
+  .union([z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/), z.literal("")])
+  .optional()
+  .nullable()
+  .transform((v) => (v === "" ? undefined : v));
+
 export const scheduleConfigSchema = z.object({
-  type: z.enum(["LOWER", "HIGHER"]),
+  type: z.enum(["PRE_PRIMARY", "LOWER", "HIGHER", "PLUS_TWO", "BACHELOR", "MASTER"]),
   periodsPerDay: z.number().int().min(1).max(12),
   periodDuration: z.number().int().min(30).max(120),
+  classStartTime: timeString,
+  classEndTime: timeString,
   breaks: z.array(
     z.object({
       type: z.enum(["SHORT", "LUNCH"]),
@@ -32,9 +40,27 @@ export const gradeSchema = z.object({
   label: z.string().min(1),
 });
 
+export const facultySchema = z.object({
+  name: z.string().min(1).max(80),
+  gradeId: z.string().cuid(),
+});
+
+export const groupSchema = z.object({
+  name: z.string().min(1).max(80),
+  facultyId: z.string().cuid(),
+});
+
+export const semesterSchema = z.object({
+  gradeId: z.string().cuid(),
+  number: z.number().int().min(1).max(8),
+});
+
 export const sectionSchema = z.object({
   name: z.string().min(1).max(10),
   gradeId: z.string().cuid(),
+  semesterId: z.string().cuid().optional(),
+  facultyId: z.string().cuid().optional(),
+  groupId: z.string().cuid().optional(),
 });
 
 export const classRoomSchema = z.object({
@@ -61,6 +87,14 @@ export const resourceSchema = z.object({
 export const teacherSubjectSchema = z.object({
   teacherId: z.string().cuid(),
   subjectId: z.string().cuid(),
+});
+
+export const teacherGradeSchema = z.object({
+  teacherId: z.string().cuid(),
+  gradeId: z.string().cuid(),
+  facultyId: z.string().cuid().optional(),
+  groupId: z.string().cuid().optional(),
+  sectionId: z.string().cuid().optional(),
 });
 
 export const teacherSchema = z.object({

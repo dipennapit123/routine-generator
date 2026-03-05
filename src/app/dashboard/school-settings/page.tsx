@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toast";
 
 export default function SchoolSettingsPage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -36,9 +39,9 @@ export default function SchoolSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      alert("Saved.");
+      toast.success("Settings saved");
     } catch {
-      alert("Failed to save.");
+      toast.error("Failed to save.");
     } finally {
       setSaving(false);
     }
@@ -93,9 +96,10 @@ export default function SchoolSettingsPage() {
         <button
           type="submit"
           disabled={saving}
-          className="btn-primary disabled:opacity-50"
+          className="btn-primary disabled:opacity-50 inline-flex items-center gap-2"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? <Spinner /> : null}
+          {saving ? "Saving…" : "Save"}
         </button>
       </form>
     </div>
