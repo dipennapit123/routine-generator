@@ -6,8 +6,13 @@ import { gradeSchema } from "@/lib/validations";
 export async function GET() {
   try {
     const grades = await prisma.grade.findMany({
-      orderBy: { number: "asc" },
-      include: { sections: true },
+      orderBy: [{ number: "asc" }, { label: "asc" }],
+      select: {
+        id: true,
+        number: true,
+        label: true,
+        sections: { select: { id: true, name: true, gradeId: true } },
+      },
     });
     return NextResponse.json(grades);
   } catch (e) {

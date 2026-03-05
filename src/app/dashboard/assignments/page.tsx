@@ -71,7 +71,8 @@ export default function AssignmentsPage() {
         body: JSON.stringify({ classId, teacherId }),
       });
       const res = await fetch("/api/assignments");
-      setAssignments(Array.isArray(await res.json()) ? await res.json() : []);
+      const data = await res.json();
+      setAssignments(Array.isArray(data) ? data : []);
     } catch {
       alert("Failed.");
     }

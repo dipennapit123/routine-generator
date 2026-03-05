@@ -12,10 +12,10 @@ export async function GET(
       include: {
         routineSlots: {
           include: {
-            classRoom: { include: { grade: true, section: true } },
-            subject: true,
-            teacher: true,
-            resource: true,
+            classRoom: { select: { displayName: true } },
+            subject: { select: { name: true } },
+            teacher: { select: { name: true } },
+            resource: { select: { name: true } },
           },
         },
       },

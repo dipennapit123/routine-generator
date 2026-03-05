@@ -5,7 +5,13 @@ import { teacherSubjectSchema } from "@/lib/validations";
 export async function GET() {
   try {
     const list = await prisma.teacherSubject.findMany({
-      include: { teacher: true, subject: true },
+      select: {
+        id: true,
+        teacherId: true,
+        subjectId: true,
+        teacher: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true } },
+      },
     });
     return NextResponse.json(list);
   } catch (e) {

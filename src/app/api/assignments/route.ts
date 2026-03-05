@@ -8,7 +8,15 @@ export async function GET(request: Request) {
   try {
     const list = await prisma.teacherAssignment.findMany({
       where: classId ? { classId } : undefined,
-      include: { classRoom: true, subject: true, teacher: true },
+      select: {
+        id: true,
+        classId: true,
+        subjectId: true,
+        teacherId: true,
+        classRoom: { select: { id: true, displayName: true } },
+        subject: { select: { id: true, name: true } },
+        teacher: { select: { id: true, name: true } },
+      },
     });
     return NextResponse.json(list);
   } catch (e) {

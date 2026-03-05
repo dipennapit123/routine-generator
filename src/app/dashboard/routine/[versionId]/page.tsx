@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -56,25 +56,22 @@ export default function RoutineVersionPage() {
       .then((r) => r.json())
       .then((data) => {
         setVersion(data);
-        const classIds = [...new Set(data.routineSlots?.map((s: Slot) => s.classId).filter(Boolean))] as string[];
+        const slots = data.routineSlots ?? [];
         const classNames = new Map<string, string>();
-        data.routineSlots?.forEach((s: Slot) => {
-          if (s.classRoom?.displayName) classNames.set(s.classId, s.classRoom.displayName);
-        });
-        setClasses(classIds.map((id) => ({ id, displayName: classNames.get(id) ?? id })));
-        const teacherIds = [...new Set(data.routineSlots?.map((s: Slot) => s.teacherId).filter(Boolean))] as string[];
         const teacherNames = new Map<string, string>();
-        data.routineSlots?.forEach((s: Slot) => {
-          if (s.teacher?.name) teacherNames.set(s.teacherId!, s.teacher.name);
-        });
-        setTeachers(teacherIds.map((id) => ({ id, name: teacherNames.get(id) ?? id })));
-        const resourceIds = [...new Set(data.routineSlots?.map((s: Slot) => s.resourceId).filter(Boolean))] as string[];
         const resourceNames = new Map<string, string>();
-        data.routineSlots?.forEach((s: Slot) => {
-          if (s.resource?.name) resourceNames.set(s.resourceId!, s.resource.name);
-        });
+        for (const s of slots) {
+          if (s.classRoom?.displayName) classNames.set(s.classId, s.classRoom.displayName);
+          if (s.teacher?.name && s.teacherId) teacherNames.set(s.teacherId, s.teacher.name);
+          if (s.resource?.name && s.resourceId) resourceNames.set(s.resourceId, s.resource.name);
+        }
+        const classIds = [...new Set(slots.map((s: Slot) => s.classId).filter(Boolean))] as string[];
+        setClasses(classIds.map((id) => ({ id, displayName: classNames.get(id) ?? id })));
+        const teacherIds = [...new Set(slots.map((s: Slot) => s.teacherId).filter(Boolean))] as string[];
+        setTeachers(teacherIds.map((id) => ({ id, name: teacherNames.get(id) ?? id })));
+        const resourceIds = [...new Set(slots.map((s: Slot) => s.resourceId).filter(Boolean))] as string[];
         setResources(resourceIds.map((id) => ({ id, name: resourceNames.get(id) ?? id })));
-        if (view === "class" && classIds.length && !filterId) setFilterId(classIds[0]);
+        if (classIds.length) setFilterId((f) => (f ? f : classIds[0]));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -87,24 +84,23 @@ export default function RoutineVersionPage() {
     return () => {};
   }, []);
 
-  const slots = version?.routineSlots ?? [];
-  const periods = Math.max(...slots.map((s) => s.periodIndex), 0) + 1;
-
-  let filteredSlots = slots;
-  if (view === "class" && filterId) {
-    filteredSlots = slots.filter((s) => s.classId === filterId);
-  } else if (view === "teacher" && filterId) {
-    filteredSlots = slots.filter((s) => s.teacherId === filterId);
-  } else if (view === "resource" && filterId) {
-    filteredSlots = slots.filter((s) => s.resourceId === filterId);
-  }
-
-  const grid = new Map<string, Slot>();
-  filteredSlots.forEach((s) => {
-    const key = `${s.day}-${s.periodIndex}`;
-    if (view === "class") grid.set(key, s);
-    else if (view === "teacher" || view === "resource") grid.set(key, s);
-  });
+  const slots = useMemo(() => version?.routineSlots ?? [], [version?.routineSlots]);
+  const periods = useMemo(
+    () => Math.max(0, ...slots.map((s) => s.periodIndex)) + 1,
+    [slots]
+  );
+  const filteredSlots = useMemo(() => {
+    if (!filterId) return slots;
+    if (view === "class") return slots.filter((s) => s.classId === filterId);
+    if (view === "teacher") return slots.filter((s) => s.teacherId === filterId);
+    if (view === "resource") return slots.filter((s) => s.resourceId === filterId);
+    return slots;
+  }, [slots, view, filterId]);
+  const grid = useMemo(() => {
+    const m = new Map<string, Slot>();
+    filteredSlots.forEach((s) => m.set(`${s.day}-${s.periodIndex}`, s));
+    return m;
+  }, [filteredSlots]);
 
   function openEdit(slot: Slot) {
     setEditSlot(slot);

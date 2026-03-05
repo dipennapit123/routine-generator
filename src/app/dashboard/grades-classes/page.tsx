@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type SubTab = "grades" | "sections" | "classes";
 
@@ -189,11 +189,17 @@ export default function GradesClassesPage() {
     }
   }
 
-  const filteredClasses = classes
-    .filter((c) =>
-      classSearch ? c.displayName.toLowerCase().includes(classSearch.toLowerCase()) : true
-    )
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const filteredClasses = useMemo(
+    () =>
+      [...classes]
+        .filter((c) =>
+          classSearch.trim()
+            ? c.displayName.toLowerCase().includes(classSearch.toLowerCase())
+            : true
+        )
+        .sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [classes, classSearch]
+  );
 
   if (loading) return <p className="loading-text">Loading...</p>;
 

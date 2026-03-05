@@ -9,7 +9,15 @@ export async function GET(request: Request) {
   try {
     const classes = await prisma.classRoom.findMany({
       where: gradeId ? { gradeId } : undefined,
-      include: { grade: true, section: true, classTeacher: { include: { teacher: true } } },
+      select: {
+        id: true,
+        displayName: true,
+        gradeId: true,
+        sectionId: true,
+        grade: { select: { id: true, number: true, label: true } },
+        section: { select: { id: true, name: true } },
+        classTeacher: { select: { teacher: { select: { id: true, name: true } } } },
+      },
       orderBy: [{ grade: { label: "asc" } }, { section: { name: "asc" } }, { displayName: "asc" }],
     });
     return NextResponse.json(classes);

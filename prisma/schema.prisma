@@ -59,6 +59,7 @@ model ClassRoom {
   routineSlots RoutineSlot[]
 
   @@unique([gradeId, sectionId])
+  @@index([gradeId])
 }
 
 model Subject {
@@ -92,6 +93,8 @@ model Teacher {
   teacherAssignments TeacherAssignment[]
   subjects     TeacherSubject[]
   routineSlots RoutineSlot[]
+
+  @@index([name])
 }
 
 model TeacherSubject {

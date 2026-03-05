@@ -5,7 +5,7 @@ import { gradeModeSchema } from "@/lib/validations";
 export async function GET() {
   try {
     const list = await prisma.gradeMode.findMany({
-      include: { grade: true },
+      select: { id: true, gradeId: true, mode: true, grade: { select: { id: true, label: true } } },
     });
     return NextResponse.json(list);
   } catch (e) {

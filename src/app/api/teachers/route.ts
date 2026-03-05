@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const teachers = await prisma.teacher.findMany({
       orderBy: { name: "asc" },
-      include: { availability: true },
+      select: { id: true, name: true, type: true, maxPerWeek: true, maxPerDay: true },
     });
     return NextResponse.json(teachers);
   } catch (e) {

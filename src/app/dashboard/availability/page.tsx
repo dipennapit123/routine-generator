@@ -20,11 +20,13 @@ function AvailabilityContent() {
       .then((r) => r.json())
       .then((data) => {
         setTeachers(Array.isArray(data) ? data : []);
-        if (teacherIdParam && !teacherId) setTeacherId(teacherIdParam);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [teacherIdParam, teacherId]);
+  }, []);
+  useEffect(() => {
+    if (teacherIdParam) setTeacherId(teacherIdParam);
+  }, [teacherIdParam]);
 
   useEffect(() => {
     if (!teacherId) {
