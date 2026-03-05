@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { SWRConfig } from "swr";
 import { ToastProvider } from "@/components/Toast";
 import { swrConfig } from "@/lib/swr";
@@ -47,11 +47,7 @@ const nav: Array<
   { href: "/dashboard/routine", label: "Routine" },
 ];
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isTeachersPath = pathname === "/dashboard/teachers" || pathname === "/dashboard/teachers/" || pathname.startsWith("/dashboard/teachers/");
@@ -72,9 +68,7 @@ export default function DashboardLayout({
   }, [isAssignmentsPath]);
 
   return (
-    <ToastProvider>
-    <div className="flex min-h-screen bg-[var(--bg-page)]">
-      <aside
+    <aside
         className="flex w-60 shrink-0 flex-col bg-[var(--bg-sidebar)] text-[var(--text-sidebar)]"
         style={{ boxShadow: "4px 0 24px -4px rgb(0 0 0 / 0.08)" }}
       >
@@ -213,10 +207,53 @@ export default function DashboardLayout({
           })}
         </nav>
       </aside>
-      <main className="min-w-0 flex-1 overflow-auto p-6 lg:p-8">
-        <SWRConfig value={swrConfig}>{children}</SWRConfig>
-      </main>
-    </div>
+  );
+}
+
+function SidebarFallback() {
+  return (
+    <aside
+      className="flex w-60 shrink-0 flex-col bg-[var(--bg-sidebar)] text-[var(--text-sidebar)]"
+      style={{ boxShadow: "4px 0 24px -4px rgb(0 0 0 / 0.08)" }}
+    >
+      <div className="border-b border-white/10 px-5 py-5">
+        <h2 className="text-lg font-bold tracking-tight text-white">Routine Generator</h2>
+        <p className="mt-0.5 text-xs font-medium text-[var(--text-sidebar)]/80">School Timetable</p>
+      </div>
+      <nav className="flex-1 space-y-0.5 p-3">
+        {nav.map((item) => (
+          "children" in item ? (
+            <div key={item.label}>
+              <div className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[var(--text-sidebar)]">
+                <span>{item.label}</span>
+              </div>
+            </div>
+          ) : (
+            <Link key={item.href} href={item.href} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--text-sidebar)]">
+              {item.label}
+            </Link>
+          )
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ToastProvider>
+      <div className="flex min-h-screen bg-[var(--bg-page)]">
+        <Suspense fallback={<SidebarFallback />}>
+          <DashboardSidebar />
+        </Suspense>
+        <main className="min-w-0 flex-1 overflow-auto p-6 lg:p-8">
+          <SWRConfig value={swrConfig}>{children}</SWRConfig>
+        </main>
+      </div>
     </ToastProvider>
   );
 }
