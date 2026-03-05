@@ -19,7 +19,13 @@ export default function RoutinePage() {
   const [modal, setModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateOpts, setGenerateOpts] = useState({
-    configType: "HIGHER" as "LOWER" | "HIGHER",
+    configType: "HIGHER" as
+      | "PRE_PRIMARY"
+      | "LOWER"
+      | "HIGHER"
+      | "PLUS_TWO"
+      | "BACHELOR"
+      | "MASTER",
     firstPeriodPriorityOverride: true as boolean | undefined,
     seed: undefined as number | undefined,
   });
@@ -197,11 +203,20 @@ export default function RoutinePage() {
                 <label className="block text-sm font-medium text-[var(--text-secondary)]">Config type</label>
                 <select
                   value={generateOpts.configType}
-                  onChange={(e) => setGenerateOpts((o) => ({ ...o, configType: e.target.value as "LOWER" | "HIGHER" }))}
+                  onChange={(e) =>
+                    setGenerateOpts((o) => ({
+                      ...o,
+                      configType: e.target.value as typeof o.configType,
+                    }))
+                  }
                   className="input mt-1.5"
                 >
+                  <option value="PRE_PRIMARY">PRE_PRIMARY (Nursery, LKG/JKG, UKG/SKG)</option>
                   <option value="LOWER">LOWER (Grade 1–3)</option>
                   <option value="HIGHER">HIGHER (Grade 4–10)</option>
+                  <option value="PLUS_TWO">PLUS_TWO (Grade 11–12)</option>
+                  <option value="BACHELOR">BACHELOR (4 years, 8 semesters)</option>
+                  <option value="MASTER">MASTER (4 semesters)</option>
                 </select>
               </div>
               <div className="flex items-center gap-3">

@@ -27,7 +27,10 @@ export const scheduleConfigSchema = z.object({
     .optional(),
 });
 
-export const gradeSchema = z.object({ number: z.number().int().min(1).max(10) });
+export const gradeSchema = z.object({
+  number: z.number().int().min(1).max(12).nullable().optional(),
+  label: z.string().min(1),
+});
 
 export const sectionSchema = z.object({
   name: z.string().min(1).max(10),
@@ -44,13 +47,20 @@ export const subjectSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["THEORY", "PRACTICAL", "ECA"]),
   requiresResource: z.boolean().default(false),
-  resourceType: z.enum(["SCIENCE_LAB", "COMPUTER_LAB", "LIBRARY", "ECA_ROOM"]).nullable().optional(),
+  // Free-form resource type so schools can define their own infra labels.
+  resourceType: z.string().min(1).nullable().optional(),
 });
 
 export const resourceSchema = z.object({
   name: z.string().min(1),
-  type: z.enum(["SCIENCE_LAB", "COMPUTER_LAB", "LIBRARY", "ECA_ROOM"]),
+  // Free-form resource type (e.g. SCIENCE_LAB, COMPUTER_LAB, SPORTS_GROUND, MUSIC_ROOM, ...).
+  type: z.string().min(1),
   capacity: z.number().int().min(1).default(1),
+});
+
+export const teacherSubjectSchema = z.object({
+  teacherId: z.string().cuid(),
+  subjectId: z.string().cuid(),
 });
 
 export const teacherSchema = z.object({
@@ -96,7 +106,9 @@ export const subjectRequirementSchema = z.object({
 export const routineGenerateSchema = z.object({
   seed: z.number().int().optional(),
   firstPeriodPriorityOverride: z.boolean().optional(),
-  configType: z.enum(["LOWER", "HIGHER"]).optional(),
+  configType: z
+    .enum(["PRE_PRIMARY", "LOWER", "HIGHER", "PLUS_TWO", "BACHELOR", "MASTER"])
+    .optional(),
 });
 
 export const routineSlotUpdateSchema = z.object({

@@ -12,6 +12,7 @@ interface Subject {
 
 export default function SubjectsPage() {
   const [list, setList] = useState<Subject[]>([]);
+  const [resourceTypes, setResourceTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Subject | null>(null);
   const [form, setForm] = useState({
@@ -22,10 +23,22 @@ export default function SubjectsPage() {
   });
 
   useEffect(() => {
-    fetch("/api/subjects")
-      .then((r) => r.json())
-      .then((data) => {
-        setList(Array.isArray(data) ? data : []);
+    Promise.all([
+      fetch("/api/subjects").then((r) => r.json()),
+      fetch("/api/resources").then((r) => r.json()).catch(() => []),
+    ])
+      .then(([subjectsData, resourcesData]) => {
+        setList(Array.isArray(subjectsData) ? subjectsData : []);
+        if (Array.isArray(resourcesData)) {
+          const types = Array.from(
+            new Set(
+              resourcesData
+                .map((r: { type?: string }) => r.type)
+                .filter((t): t is string => typeof t === "string" && t.length > 0)
+            )
+          );
+          setResourceTypes(types);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -87,6 +100,16 @@ export default function SubjectsPage() {
   }
 
   if (loading) return <p className="loading-text">Loading...</p>;
+
+  const allResourceTypes = Array.from(
+    new Set([
+      ...resourceTypes,
+      "SCIENCE_LAB",
+      "COMPUTER_LAB",
+      "LIBRARY",
+      "ECA_ROOM",
+    ])
+  );
 
   return (
     <div>
@@ -169,17 +192,21 @@ export default function SubjectsPage() {
               {form.requiresResource && (
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-secondary)]">Resource type</label>
-                  <select
+                  <input
+                    type="text"
+                    list="subject-resource-types"
                     value={form.resourceType ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, resourceType: e.target.value || null }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, resourceType: e.target.value ? e.target.value : null }))
+                    }
                     className="input mt-1.5"
-                  >
-                    <option value="">Select</option>
-                    <option value="SCIENCE_LAB">SCIENCE_LAB</option>
-                    <option value="COMPUTER_LAB">COMPUTER_LAB</option>
-                    <option value="LIBRARY">LIBRARY</option>
-                    <option value="ECA_ROOM">ECA_ROOM</option>
-                  </select>
+                    placeholder="e.g. SCIENCE_LAB, COMPUTER_LAB, SPORTS_GROUND"
+                  />
+                  <datalist id="subject-resource-types">
+                    {allResourceTypes.map((t) => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
                 </div>
               )}
             </div>

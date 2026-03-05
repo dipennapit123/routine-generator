@@ -65,16 +65,27 @@ export default function ResourcesPage() {
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           className="rounded border border-slate-300 px-3 py-2"
         />
-        <select
+        <input
+          type="text"
+          list="resource-types"
+          placeholder="Type (e.g. SCIENCE_LAB, SPORTS_GROUND)"
           value={form.type}
           onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
           className="rounded border border-slate-300 px-3 py-2"
-        >
-          <option value="SCIENCE_LAB">Science Lab</option>
-          <option value="COMPUTER_LAB">Computer Lab</option>
-          <option value="LIBRARY">Library</option>
-          <option value="ECA_ROOM">ECA Room</option>
-        </select>
+        />
+        <datalist id="resource-types">
+          {Array.from(
+            new Set([
+              ...list.map((r) => r.type),
+              "SCIENCE_LAB",
+              "COMPUTER_LAB",
+              "LIBRARY",
+              "ECA_ROOM",
+            ])
+          ).map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
         <input
           type="number"
           min={1}

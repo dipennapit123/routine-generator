@@ -51,8 +51,8 @@ async function main() {
   for (const number of [1, 2, 3, 4, 5]) {
     await prisma.grade.upsert({
       where: { number },
-      create: { number },
-      update: {},
+      create: { number, label: `Grade ${number}` },
+      update: { label: `Grade ${number}` },
     });
   }
 
@@ -67,7 +67,11 @@ async function main() {
       }
       const room = await prisma.classRoom.upsert({
         where: { gradeId_sectionId: { gradeId: g.id, sectionId: section.id } },
-        create: { gradeId: g.id, sectionId: section.id, displayName: `Grade ${g.number}-${name}` },
+        create: {
+          gradeId: g.id,
+          sectionId: section.id,
+          displayName: `${g.label ?? (g.number != null ? `Grade ${g.number}` : "Class")}-${name}`,
+        },
         update: {},
       });
       classRooms.push(room);
@@ -156,8 +160,13 @@ async function main() {
   for (const g of grades) {
     await prisma.gradeMode.upsert({
       where: { gradeId: g.id },
-      create: { gradeId: g.id, mode: g.number <= 3 ? "GRADE_SYSTEM" : "SUBJECT_SYSTEM" },
-      update: { mode: g.number <= 3 ? "GRADE_SYSTEM" : "SUBJECT_SYSTEM" },
+      create: {
+        gradeId: g.id,
+        mode: g.number != null && g.number <= 3 ? "GRADE_SYSTEM" : "SUBJECT_SYSTEM",
+      },
+      update: {
+        mode: g.number != null && g.number <= 3 ? "GRADE_SYSTEM" : "SUBJECT_SYSTEM",
+      },
     });
   }
 
@@ -171,8 +180,9 @@ async function main() {
           gradeId: g.id,
           subjectId: subject.id,
           // Lighter defaults so generation is more likely to succeed for all grades:
-          // Grades 1–3: 2/wk, 4–5: 4/wk, 6–10: 2/wk.
-          periodsPerWeek: g.number <= 3 ? 2 : g.number <= 5 ? 4 : 2,
+          // Grades 1–3: 2/wk, 4–5: 4/wk, 6–10: 2/wk, others: 2/wk.
+          periodsPerWeek:
+            g.number != null && g.number <= 3 ? 2 : g.number != null && g.number <= 5 ? 4 : 2,
           // Keep demo generation simple/reliable: avoid double periods even for practicals.
           // Admins can turn on double periods per subject later in the UI.
           allowDoublePeriod: false,

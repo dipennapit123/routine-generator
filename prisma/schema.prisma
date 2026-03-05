@@ -29,12 +29,13 @@ model ScheduleConfig {
 }
 
 model Grade {
-  id     String   @id @default(cuid())
-  number Int      @unique
-  sections Section[]
-  classRooms ClassRoom[]
-  gradeModes GradeMode[]
-  subjectRequirements SubjectRequirement[]
+  id                   String                @id @default(cuid())
+  number               Int?                  @unique
+  label                String                @unique
+  sections             Section[]
+  classRooms           ClassRoom[]
+  gradeModes           GradeMode[]
+  subjectRequirements  SubjectRequirement[]
 }
 
 model Section {
@@ -65,16 +66,17 @@ model Subject {
   name             String
   type             String   // THEORY | PRACTICAL | ECA
   requiresResource Boolean  @default(false)
-  resourceType     String?  // SCIENCE_LAB | COMPUTER_LAB | LIBRARY | ECA_ROOM
+  resourceType     String?
   teacherAssignments TeacherAssignment[]
   subjectRequirements SubjectRequirement[]
+  teacherSubjects   TeacherSubject[]
   routineSlots RoutineSlot[]
 }
 
 model Resource {
   id     String   @id @default(cuid())
   name   String
-  type   String   // SCIENCE_LAB | COMPUTER_LAB | LIBRARY | ECA_ROOM
+  type   String
   capacity Int    @default(1)
   routineSlots RoutineSlot[]
 }
@@ -88,7 +90,18 @@ model Teacher {
   availability TeacherAvailability[]
   classTeachers ClassTeacher[]
   teacherAssignments TeacherAssignment[]
+  subjects     TeacherSubject[]
   routineSlots RoutineSlot[]
+}
+
+model TeacherSubject {
+  id        String   @id @default(cuid())
+  teacherId String
+  subjectId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
 }
 
 model TeacherAvailability {

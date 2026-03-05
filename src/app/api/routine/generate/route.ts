@@ -12,7 +12,15 @@ export async function POST(request: Request) {
     const result = await generateRoutine({
       seed: data.seed,
       firstPeriodPriorityOverride: data.firstPeriodPriorityOverride,
-      configType: data.configType,
+      // Allow extended config types beyond LOWER/HIGHER
+      configType: data.configType as
+        | "PRE_PRIMARY"
+        | "LOWER"
+        | "HIGHER"
+        | "PLUS_TWO"
+        | "BACHELOR"
+        | "MASTER"
+        | undefined,
     });
     if (!result.success) {
       return NextResponse.json(

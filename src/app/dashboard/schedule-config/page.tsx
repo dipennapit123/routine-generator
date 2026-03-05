@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-type ConfigType = "LOWER" | "HIGHER";
+type ConfigType =
+  | "PRE_PRIMARY"
+  | "LOWER"
+  | "HIGHER"
+  | "PLUS_TWO"
+  | "BACHELOR"
+  | "MASTER";
 
 interface Config {
   id?: string;
@@ -79,22 +85,32 @@ export default function ScheduleConfigPage() {
   return (
     <div>
       <h1 className="page-title mb-8">Schedule Config</h1>
-      <p className="mb-4 text-sm text-slate-600">LOWER = Grade 1–3, HIGHER = Grade 4–10.</p>
-      <div className="flex gap-4">
-        {(["LOWER", "HIGHER"] as const).map((type) => (
-          <div key={type} className="card card-hover p-5">
-            <h2 className="font-semibold text-slate-800">{type}</h2>
-            {configs.find((c) => c.type === type) ? (
+      <p className="mb-4 text-sm text-slate-600">
+        Configure different structures for pre-primary, school, higher secondary, and college levels.
+      </p>
+      <div className="flex flex-wrap gap-4">
+        {([
+          { id: "PRE_PRIMARY", label: "PRE_PRIMARY", desc: "Nursery, LKG/JKG, UKG/SKG" },
+          { id: "LOWER", label: "LOWER", desc: "Grade 1–3" },
+          { id: "HIGHER", label: "HIGHER", desc: "Grade 4–10" },
+          { id: "PLUS_TWO", label: "PLUS_TWO", desc: "Grade 11–12" },
+          { id: "BACHELOR", label: "BACHELOR", desc: "Bachelor (4 years, 8 semesters)" },
+          { id: "MASTER", label: "MASTER", desc: "Master (4 semesters)" },
+        ] as { id: ConfigType; label: string; desc: string }[]).map(({ id, label, desc }) => (
+          <div key={id} className="card card-hover w-full max-w-xs p-5">
+            <h2 className="font-semibold text-slate-800">{label}</h2>
+            <p className="mt-1 text-xs text-slate-500">{desc}</p>
+            {configs.find((c) => c.type === id) ? (
               <p className="mt-1 text-sm text-slate-600">
-                {configs.find((c) => c.type === type)?.periodsPerDay} periods ×{" "}
-                {configs.find((c) => c.type === type)?.periodDuration} min
+                {configs.find((c) => c.type === id)?.periodsPerDay} periods ×{" "}
+                {configs.find((c) => c.type === id)?.periodDuration} min
               </p>
             ) : (
               <p className="mt-1 text-sm text-slate-500">Not configured</p>
             )}
             <button
               type="button"
-              onClick={() => openEdit(type)}
+              onClick={() => openEdit(id)}
               className="btn-secondary mt-2 text-sm"
             >
               Edit

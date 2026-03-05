@@ -8,7 +8,8 @@ interface Subject {
 }
 interface Grade {
   id: string;
-  number: number;
+  number: number | null;
+  label: string;
 }
 interface ClassRoom {
   id: string;
@@ -34,6 +35,7 @@ export default function RequirementsPage() {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Requirement | null>(null);
   const [form, setForm] = useState({
     gradeId: "",
     classId: "",
@@ -61,27 +63,50 @@ export default function RequirementsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.subjectId || (!form.gradeId && !form.classId)) {
+    if (!editing && (!form.subjectId || (!form.gradeId && !form.classId))) {
       alert("Set either grade or class, and subject.");
       return;
     }
     try {
-      await fetch("/api/requirements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gradeId: form.gradeId || null,
-          classId: form.classId || null,
-          subjectId: form.subjectId,
-          periodsPerWeek: form.periodsPerWeek,
-          allowDoublePeriod: form.allowDoublePeriod,
-          maxPerDay: form.maxPerDay,
-          avoidConsecutive: form.avoidConsecutive,
-        }),
+      if (editing) {
+        await fetch(`/api/requirements/${editing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            periodsPerWeek: form.periodsPerWeek,
+            allowDoublePeriod: form.allowDoublePeriod,
+            maxPerDay: form.maxPerDay,
+            avoidConsecutive: form.avoidConsecutive,
+          }),
+        });
+      } else {
+        await fetch("/api/requirements", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            gradeId: form.gradeId || null,
+            classId: form.classId || null,
+            subjectId: form.subjectId,
+            periodsPerWeek: form.periodsPerWeek,
+            allowDoublePeriod: form.allowDoublePeriod,
+            maxPerDay: form.maxPerDay,
+            avoidConsecutive: form.avoidConsecutive,
+          }),
+        });
+      }
+      setEditing(null);
+      setForm({
+        gradeId: "",
+        classId: "",
+        subjectId: "",
+        periodsPerWeek: 5,
+        allowDoublePeriod: false,
+        maxPerDay: 2,
+        avoidConsecutive: false,
       });
-      setForm((f) => ({ ...f, gradeId: "", classId: "", subjectId: "" }));
       const res = await fetch("/api/requirements");
-      setList(Array.isArray(await res.json()) ? await res.json() : []);
+      const data = await res.json();
+      setList(Array.isArray(data) ? data : []);
     } catch {
       alert("Failed.");
     }
@@ -91,6 +116,18 @@ export default function RequirementsPage() {
     try {
       await fetch(`/api/requirements/${id}`, { method: "DELETE" });
       setList((prev) => prev.filter((r) => r.id !== id));
+      if (editing?.id === id) {
+        setEditing(null);
+        setForm({
+          gradeId: "",
+          classId: "",
+          subjectId: "",
+          periodsPerWeek: 5,
+          allowDoublePeriod: false,
+          maxPerDay: 2,
+          avoidConsecutive: false,
+        });
+      }
     } catch {
       alert("Failed.");
     }
@@ -103,21 +140,35 @@ export default function RequirementsPage() {
       <h1 className="page-title mb-8">Subject Requirements</h1>
       <p className="mb-4 text-sm text-slate-600">Define how many periods per week each subject needs (per grade or per class).</p>
       <form onSubmit={handleSubmit} className="card mb-6 flex flex-wrap gap-2 p-4">
+        {editing && (
+          <p className="w-full mb-2 text-xs text-[var(--text-muted)]">
+            Editing requirement for{" "}
+            <strong>
+              {editing.classRoom?.displayName ?? (editing.grade ? `Grade ${editing.grade.number}` : "—")} – {editing.subject?.name}
+            </strong>
+            . Grade/Class/Subject cannot be changed here; adjust numbers and flags, or delete and add a new row.
+          </p>
+        )}
         <select
           value={form.gradeId}
           onChange={(e) => setForm((f) => ({ ...f, gradeId: e.target.value, classId: "" }))}
+          disabled={!!editing}
           className="rounded border border-slate-300 px-3 py-2"
         >
           <option value="">Grade (all sections)</option>
-          {grades.map((g) => (
-            <option key={g.id} value={g.id}>
-              Grade {g.number}
-            </option>
-          ))}
+          {grades.map((g) => {
+            const label = g.label ?? (g.number != null ? `Grade ${g.number}` : "Grade");
+            return (
+              <option key={g.id} value={g.id}>
+                {label}
+              </option>
+            );
+          })}
         </select>
         <select
           value={form.classId}
           onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value, gradeId: "" }))}
+          disabled={!!editing}
           className="rounded border border-slate-300 px-3 py-2"
         >
           <option value="">Or specific class</option>
@@ -130,6 +181,7 @@ export default function RequirementsPage() {
         <select
           value={form.subjectId}
           onChange={(e) => setForm((f) => ({ ...f, subjectId: e.target.value }))}
+          disabled={!!editing}
           className="rounded border border-slate-300 px-3 py-2"
         >
           <option value="">Subject</option>
@@ -173,7 +225,29 @@ export default function RequirementsPage() {
           />
           Avoid consecutive
         </label>
-        <button type="submit" className="btn-primary">Add</button>
+        <button type="submit" className="btn-primary">
+          {editing ? "Save changes" : "Add"}
+        </button>
+        {editing && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditing(null);
+              setForm({
+                gradeId: "",
+                classId: "",
+                subjectId: "",
+                periodsPerWeek: 5,
+                allowDoublePeriod: false,
+                maxPerDay: 2,
+                avoidConsecutive: false,
+              });
+            }}
+            className="btn-secondary"
+          >
+            Cancel edit
+          </button>
+        )}
       </form>
       <div className="table-wrapper">
       <table className="w-full border-collapse">
@@ -191,13 +265,34 @@ export default function RequirementsPage() {
           {list.map((r) => (
             <tr key={r.id}>
               <td>
-                {r.classRoom?.displayName ?? (r.grade ? `Grade ${r.grade.number}` : "—")}
+                {r.classRoom?.displayName ??
+                  (r.grade
+                    ? r.grade.label ?? (r.grade.number != null ? `Grade ${r.grade.number}` : "—")
+                    : "—")}
               </td>
               <td>{r.subject?.name ?? r.subjectId}</td>
               <td>{r.periodsPerWeek}</td>
               <td>{r.allowDoublePeriod ? "Yes" : "No"}</td>
               <td>{r.maxPerDay ?? "—"}</td>
               <td>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(r);
+                    setForm({
+                      gradeId: r.gradeId ?? "",
+                      classId: r.classId ?? "",
+                      subjectId: r.subjectId,
+                      periodsPerWeek: r.periodsPerWeek,
+                      allowDoublePeriod: r.allowDoublePeriod,
+                      maxPerDay: r.maxPerDay ?? 2,
+                      avoidConsecutive: r.avoidConsecutive,
+                    });
+                  }}
+                  className="text-indigo-600 hover:underline mr-2"
+                >
+                  Edit
+                </button>
                 <button type="button" onClick={() => deleteReq(r.id)} className="text-red-600 hover:underline">
                   Delete
                 </button>

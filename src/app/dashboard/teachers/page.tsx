@@ -20,10 +20,22 @@ interface ClassTeacherEntry {
   teacherId: string;
 }
 
+interface Subject {
+  id: string;
+  name: string;
+}
+
+interface TeacherSubjectEntry {
+  teacherId: string;
+  subjectId: string;
+}
+
 export default function TeachersPage() {
   const [list, setList] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [classTeacherList, setClassTeacherList] = useState<ClassTeacherEntry[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teacherSubjectList, setTeacherSubjectList] = useState<TeacherSubjectEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Teacher | null>(null);
   const [form, setForm] = useState({
@@ -32,6 +44,7 @@ export default function TeachersPage() {
     maxPerWeek: 30,
     maxPerDay: 6,
     classTeacherFor: [] as string[],
+    subjectsFor: [] as string[],
   });
 
   useEffect(() => {
@@ -39,16 +52,31 @@ export default function TeachersPage() {
       fetch("/api/teachers").then((r) => r.json()),
       fetch("/api/classes").then((r) => r.json()),
       fetch("/api/class-teacher").then((r) => r.json()),
-    ]).then(([teachersData, classesData, ctData]) => {
+      fetch("/api/subjects").then((r) => r.json()),
+      fetch("/api/teacher-subject").then((r) => r.json()).catch(() => []),
+    ]).then(([teachersData, classesData, ctData, subjectsData, tsData]) => {
       setList(Array.isArray(teachersData) ? teachersData : []);
       setClasses(Array.isArray(classesData) ? classesData : []);
       setClassTeacherList(Array.isArray(ctData) ? ctData : []);
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
+      if (Array.isArray(tsData)) {
+        setTeacherSubjectList(
+          tsData.map((x: any) => ({ teacherId: x.teacherId, subjectId: x.subjectId }))
+        );
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
   function openAdd() {
-    setForm({ name: "", type: "FULL_TIME", maxPerWeek: 30, maxPerDay: 6, classTeacherFor: [] });
+    setForm({
+      name: "",
+      type: "FULL_TIME",
+      maxPerWeek: 30,
+      maxPerDay: 6,
+      classTeacherFor: [],
+      subjectsFor: [],
+    });
     setModal({ id: "", name: "", type: "FULL_TIME", maxPerWeek: 30, maxPerDay: 6 });
   }
 
@@ -56,12 +84,16 @@ export default function TeachersPage() {
     const classTeacherFor = classTeacherList
       .filter((ct) => ct.teacherId === t.id)
       .map((ct) => ct.classId);
+    const subjectsFor = teacherSubjectList
+      .filter((ts) => ts.teacherId === t.id)
+      .map((ts) => ts.subjectId);
     setForm({
       name: t.name,
       type: t.type as "FULL_TIME" | "PART_TIME",
       maxPerWeek: t.maxPerWeek,
       maxPerDay: t.maxPerDay,
       classTeacherFor,
+      subjectsFor,
     });
     setModal(t);
   }
@@ -92,6 +124,28 @@ export default function TeachersPage() {
         for (const classId of toRemove) {
           await fetch(`/api/class-teacher?classId=${encodeURIComponent(classId)}`, { method: "DELETE" });
         }
+
+        // Update subjects that this teacher can teach
+        const prevSubjects = teacherSubjectList
+          .filter((ts) => ts.teacherId === modal.id)
+          .map((ts) => ts.subjectId);
+        const subjectsToAdd = form.subjectsFor.filter((s) => !prevSubjects.includes(s));
+        const subjectsToRemove = prevSubjects.filter((s) => !form.subjectsFor.includes(s));
+        for (const subjectId of subjectsToAdd) {
+          await fetch("/api/teacher-subject", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ teacherId, subjectId }),
+          });
+        }
+        for (const subjectId of subjectsToRemove) {
+          await fetch(
+            `/api/teacher-subject?teacherId=${encodeURIComponent(teacherId)}&subjectId=${encodeURIComponent(
+              subjectId
+            )}`,
+            { method: "DELETE" }
+          );
+        }
       } else {
         const res = await fetch("/api/teachers", {
           method: "POST",
@@ -100,13 +154,24 @@ export default function TeachersPage() {
         });
         const created = await res.json();
         teacherId = created?.id;
-        if (teacherId && form.classTeacherFor.length > 0) {
-          for (const classId of form.classTeacherFor) {
-            await fetch("/api/class-teacher", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ classId, teacherId }),
-            });
+        if (teacherId) {
+          if (form.classTeacherFor.length > 0) {
+            for (const classId of form.classTeacherFor) {
+              await fetch("/api/class-teacher", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ classId, teacherId }),
+              });
+            }
+          }
+          if (form.subjectsFor.length > 0) {
+            for (const subjectId of form.subjectsFor) {
+              await fetch("/api/teacher-subject", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teacherId, subjectId }),
+              });
+            }
           }
         }
       }
@@ -152,6 +217,7 @@ export default function TeachersPage() {
             <th>Type</th>
             <th>Max/week</th>
             <th>Max/day</th>
+            <th>Class teacher for</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -162,6 +228,12 @@ export default function TeachersPage() {
               <td>{t.type}</td>
               <td>{t.maxPerWeek}</td>
               <td>{t.maxPerDay}</td>
+              <td className="text-sm text-[var(--text-secondary)]">
+                {classTeacherList
+                  .filter((ct) => ct.teacherId === t.id)
+                  .map((ct) => classes.find((c) => c.id === ct.classId)?.displayName ?? ct.classId)
+                  .join(", ") || "—"}
+              </td>
               <td>
                 <button type="button" onClick={() => openEdit(t)} className="text-indigo-600 hover:underline mr-2">
                   Edit
@@ -248,6 +320,40 @@ export default function TeachersPage() {
                           className="rounded border-[var(--border)]"
                         />
                         <span className="text-sm">{c.displayName}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Subjects they can teach (optional)
+                </label>
+                <p className="text-xs text-[var(--text-muted)] mb-2">
+                  This list is used to suggest teachers in the Assignments screen when you pick a subject for a class.
+                </p>
+                <div className="max-h-32 overflow-y-auto rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-2 space-y-1.5">
+                  {subjects.length === 0 ? (
+                    <p className="text-sm text-[var(--text-muted)]">No subjects yet. Add subjects first.</p>
+                  ) : (
+                    subjects.map((s) => (
+                      <label key={s.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.subjectsFor.includes(s.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setForm((f) => ({ ...f, subjectsFor: [...f.subjectsFor, s.id] }));
+                            } else {
+                              setForm((f) => ({
+                                ...f,
+                                subjectsFor: f.subjectsFor.filter((id) => id !== s.id),
+                              }));
+                            }
+                          }}
+                          className="rounded border-[var(--border)]"
+                        />
+                        <span className="text-sm">{s.name}</span>
                       </label>
                     ))
                   )}

@@ -14,7 +14,13 @@ const MAX_ATTEMPTS = 3;
 export async function generateRoutine(params: {
   firstPeriodPriorityOverride?: boolean;
   seed?: number;
-  configType?: "LOWER" | "HIGHER";
+  configType?:
+    | "PRE_PRIMARY"
+    | "LOWER"
+    | "HIGHER"
+    | "PLUS_TWO"
+    | "BACHELOR"
+    | "MASTER";
 }): Promise<GenerateResult> {
   const seed = params.seed ?? Date.now();
   const random = () => seededRandom(seed + Math.random() * 1000);
@@ -41,13 +47,27 @@ export async function generateRoutine(params: {
   const firstPeriodPriority =
     params.firstPeriodPriorityOverride ?? schoolSetting.firstPeriodPriority;
 
-  const configByType = Object.fromEntries(
-    scheduleConfigs.map((c) => [c.type, c as { periodsPerDay: number; periodDuration: number; breaks: unknown; assembly: unknown }])
+  const configByType: Record<
+    string,
+    { periodsPerDay: number; periodDuration: number; breaks: unknown; assembly: unknown }
+  > = Object.fromEntries(
+    scheduleConfigs.map((c) => [
+      c.type,
+      {
+        periodsPerDay: c.periodsPerDay,
+        periodDuration: c.periodDuration,
+        breaks: c.breaks,
+        assembly: c.assembly,
+      },
+    ])
   );
-  const lowerConfig = configByType.LOWER ?? configByType.HIGHER;
-  const higherConfig = configByType.HIGHER ?? configByType.LOWER;
-  if (!lowerConfig || !higherConfig) {
-    return { success: false, errors: ["Schedule config for LOWER and/or HIGHER not found."] };
+  const defaultConfig =
+    configByType.HIGHER ?? configByType.LOWER ?? Object.values(configByType)[0] ?? null;
+  if (!defaultConfig) {
+    return {
+      success: false,
+      errors: ["Schedule config not found. Configure at least one schedule in 'Schedule Config'."],
+    };
   }
 
   const classTeacherMap: Record<string, string> = {};
@@ -148,7 +168,7 @@ export async function generateRoutine(params: {
 
   const classIds = classRooms.map((c) => c.id);
   const configType = params.configType ?? "HIGHER";
-  const config = configType === "LOWER" ? lowerConfig : higherConfig;
+  const config = configByType[configType] ?? defaultConfig;
   const breaks = (config.breaks as { afterPeriod: number; type: string }[]) ?? [];
   const assembly = config.assembly as { periodIndex: number } | null;
   const assemblyPeriod = assembly?.periodIndex ?? null;
