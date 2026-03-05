@@ -144,11 +144,16 @@ export default function GradesClassesPage() {
       return;
     }
     try {
-      await fetch("/api/classes", {
+      const res = await fetch("/api/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newClass),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error ?? "Failed to create class.");
+        return;
+      }
       setNewClass({ gradeId: "", sectionId: "" });
       load();
     } catch {

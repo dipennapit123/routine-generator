@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { classRoomSchema } from "@/lib/validations";
 
@@ -30,7 +31,8 @@ export async function POST(request: Request) {
     if (section.gradeId !== data.gradeId) {
       return NextResponse.json({ error: "Section does not belong to grade" }, { status: 400 });
     }
-    const displayName = data.displayName ?? `Grade ${grade.number}-${section.name}`;
+    const gradePart = grade.number != null ? `Grade ${grade.number}` : grade.label;
+    const displayName = data.displayName ?? `${gradePart}-${section.name}`;
     const created = await prisma.classRoom.create({
       data: { gradeId: data.gradeId, sectionId: data.sectionId, displayName },
       include: { grade: true, section: true },
@@ -39,6 +41,12 @@ export async function POST(request: Request) {
   } catch (e) {
     if (e instanceof Error && "issues" in e) {
       return NextResponse.json({ error: "Validation failed", details: e }, { status: 400 });
+    }
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json(
+        { error: "A class for this grade and section already exists." },
+        { status: 409 }
+      );
     }
     console.error(e);
     return NextResponse.json({ error: "Failed to create" }, { status: 500 });

@@ -144,7 +144,7 @@ export default function RequirementsPage() {
           <p className="w-full mb-2 text-xs text-[var(--text-muted)]">
             Editing requirement for{" "}
             <strong>
-              {editing.classRoom?.displayName ?? (editing.grade ? `Grade ${editing.grade.number}` : "—")} – {editing.subject?.name}
+              {editing.classRoom?.displayName ?? (editing.grade?.label ?? "—")} – {editing.subject?.name}
             </strong>
             . Grade/Class/Subject cannot be changed here; adjust numbers and flags, or delete and add a new row.
           </p>
